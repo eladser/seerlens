@@ -74,7 +74,7 @@ The SDK ships traces on a background queue. If the collector is down or busy, tr
 
 ### From other languages
 
-The collector speaks OTLP, so any OpenTelemetry-instrumented app shows up at `http://localhost:5005/v1/traces` with no Seerlens SDK. There's also a small Python SDK in [sdk/python](sdk/python):
+The collector speaks OTLP, so any OpenTelemetry-instrumented app shows up at `http://localhost:5005/v1/traces` with no Seerlens SDK. There are also small SDKs for [Python](sdk/python) and [JavaScript](sdk/js):
 
 ```python
 import seerlens
@@ -83,6 +83,15 @@ seerlens.configure("http://localhost:5005")
 with seerlens.trace("answer ticket", model="gpt-4o") as span:
     reply = my_llm(prompt)
     span.complete(prompt=prompt, completion=reply, input_tokens=40, output_tokens=12)
+```
+
+```js
+import * as seerlens from 'seerlens'
+seerlens.configure('http://localhost:5005')
+
+const span = seerlens.trace('answer ticket', { model: 'gpt-4o' })
+const reply = await myLlm(prompt)
+span.complete({ prompt, completion: reply, inputTokens: 40, outputTokens: 12 })
 ```
 
 ## How it works
@@ -127,10 +136,9 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 
 ## Status and what's next
 
-Live tracing for .NET, OTLP ingest for everything else, and eval trends. On the list:
+Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends. On the list:
 
 - **LLM-as-judge in the dashboard.** The eval engine already supports a model judge for faithfulness and relevancy; next is running it from the dashboard so you can pick the scorer per set.
-- **JavaScript SDK.** A thin wrapper like the .NET and Python ones, for JS apps that don't already run OpenTelemetry.
 
 ## Made by
 
