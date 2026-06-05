@@ -70,4 +70,43 @@ public class SeerlensChatClientTests
         Assert.Equal(2, trace.Spans.Count(s => s.Kind == "llm"));
         Assert.Single(trace.Spans, s => s.Kind == "tool" && s.Name == "lookupOrder");
     }
+
+    [Fact]
+    public async Task Streaming_passes_chunks_through_and_records_the_assembled_call()
+    {
+        var sink = new CapturingSink();
+        SeerlensTrace.UseSink(sink);
+
+        var client = new FakeStreamingChatClient("gpt-4o", 40, 12).UseSeerlens();
+
+        var chunks = new List<string>();
+        await foreach (var u in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hi")]))
+            chunks.Add(u.Text);
+
+        Assert.Equal("Hello world", string.Concat(chunks));
+
+        var span = Assert.Single(sink.Traces).Spans[0];
+        Assert.Equal("gpt-4o", span.Model);
+        Assert.Equal("Hello world", span.CompletionText);
+        Assert.Equal(40, span.PromptTokens);
+        Assert.Equal(12, span.CompletionTokens);
+    }
+
+    [Fact]
+    public async Task Streaming_error_propagates_and_is_recorded()
+    {
+        var sink = new CapturingSink();
+        SeerlensTrace.UseSink(sink);
+
+        var client = new FakeStreamingChatClient("gpt-4o", 1, 1, throwMidway: true).UseSeerlens();
+
+        await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hi")])) { }
+        });
+
+        var trace = Assert.Single(sink.Traces);
+        Assert.Equal("error", trace.Status);
+        Assert.Equal("stream dropped", trace.Spans[0].Error);
+    }
 }
