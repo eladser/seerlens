@@ -7,21 +7,26 @@ import { Waterfall } from './Waterfall'
 export function TraceDetail({ traceId }: { traceId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null)
   const [spanId, setSpanId] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let live = true
     setDetail(null)
     setSpanId(null)
-    getTrace(traceId).then(d => {
-      if (!live) return
-      setDetail(d)
-      setSpanId(d.spans[0]?.id ?? null)
-    })
+    setFailed(false)
+    getTrace(traceId)
+      .then(d => {
+        if (!live) return
+        setDetail(d)
+        setSpanId(d.spans[0]?.id ?? null)
+      })
+      .catch(() => live && setFailed(true))
     return () => {
       live = false
     }
   }, [traceId])
 
+  if (failed) return <div className="empty">Couldn't load this trace.</div>
   if (!detail) return <DetailSkeleton />
 
   const { trace, spans } = detail

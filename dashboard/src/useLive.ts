@@ -13,11 +13,13 @@ export function useLive() {
   useEffect(() => {
     let live = true
 
-    getTraces().then(initial => {
-      if (!live) return
-      initial.forEach(t => seen.current.add(t.id))
-      setTraces(initial)
-    })
+    getTraces()
+      .then(initial => {
+        if (!live) return
+        initial.forEach(t => seen.current.add(t.id))
+        setTraces(initial)
+      })
+      .catch(() => {}) // collector not up yet; the live feed will fill in once it is
 
     const es = new EventSource('/events')
     es.onopen = () => setConnected(true)

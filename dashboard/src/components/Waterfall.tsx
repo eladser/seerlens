@@ -23,8 +23,8 @@ export function Waterfall({ spans, traceStart, traceDuration, selectedId, onSele
       </div>
 
       {spans.map(s => {
-        const left = ((s.startedAt - traceStart) / total) * 100
-        const width = Math.max(1.5, (s.durationMs / total) * 100)
+        const left = Math.min(((s.startedAt - traceStart) / total) * 100, 98.5)
+        const width = Math.max(1.5, Math.min((s.durationMs / total) * 100, 100 - left))
         return (
           <div
             key={s.id}
@@ -38,7 +38,7 @@ export function Waterfall({ spans, traceStart, traceDuration, selectedId, onSele
             <div className="wf-track gridded">
               <div
                 className={'wf-bar kind-' + s.kind + (s.error ? ' bar-err' : '')}
-                style={{ left: `${Math.min(left, 98.5)}%`, width: `${width}%` }}
+                style={{ left: `${left}%`, width: `${width}%` }}
               />
             </div>
             <span className="wf-dur num">{dur(s.durationMs)}</span>
