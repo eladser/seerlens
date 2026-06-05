@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/node_modules
+dashboard/dist
+src/Seerlens.Collector/ui
+dist
+nupkg
+.git
+*.db
+*.db-shm
+*.db-wal
