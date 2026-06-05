@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
   </ItemGroup>
 
+  <!-- ship the built dashboard next to the binary so it serves from any working dir -->
+  <ItemGroup>
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,13 @@
 using System.Text.Json;
 using Seerlens.Collector;
 
-var builder = WebApplication.CreateBuilder(args);
+// Anchor the content root to the binary, not the caller's working directory,
+// so the bundled dashboard is found wherever the tool is launched from.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 
 var dbPath = builder.Configuration["SEERLENS_DB"]
     ?? Environment.GetEnvironmentVariable("SEERLENS_DB")
@@ -38,6 +44,10 @@ app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken c
 {
     ctx.Response.Headers.ContentType = "text/event-stream";
     ctx.Response.Headers.CacheControl = "no-cache";
+
+    // flush a comment up front so the browser's EventSource fires `open` right away
+    await ctx.Response.WriteAsync(": connected\n\n", ct);
+    await ctx.Response.Body.FlushAsync(ct);
 
     var (id, reader) = live.Subscribe();
     try
