@@ -7,6 +7,9 @@ var dbPath = builder.Configuration["SEERLENS_DB"]
     ?? Environment.GetEnvironmentVariable("SEERLENS_DB")
     ?? "seerlens.db";
 
+builder.WebHost.UseUrls(
+    Environment.GetEnvironmentVariable("SEERLENS_URL") ?? "http://localhost:5005");
+
 builder.Services.AddSingleton(TraceStore.ForFile(dbPath));
 builder.Services.AddSingleton<LiveFeed>();
 
