@@ -16,7 +16,9 @@ COPY --from=ui /ui/dist /app/ui
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 COPY --from=build /app ./
+RUN mkdir -p /data
 ENV SEERLENS_URL=http://0.0.0.0:5005
 ENV SEERLENS_DB=/data/seerlens.db
 EXPOSE 5005
+VOLUME ["/data"]
 ENTRYPOINT ["dotnet", "Seerlens.Collector.dll"]
