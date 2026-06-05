@@ -6,9 +6,12 @@ obj/
 # dashboard
 node_modules/
 dashboard/dist/
-src/Seerlens.Collector/wwwroot/
+src/Seerlens.Collector/ui/
 
 # local data
 *.db
 *.db-shm
 *.db-wal
+
+# packaged tool
+nupkg/

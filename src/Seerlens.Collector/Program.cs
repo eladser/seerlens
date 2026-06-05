@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.FileProviders;
 using Seerlens.Collector;
 
 // Anchor the content root to the binary, not the caller's working directory,
@@ -23,8 +24,16 @@ var app = builder.Build();
 
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// The dashboard is built into ./ui next to the binary. Serve it from there so it
+// works the same whether run from source or installed as a global tool.
+var uiPath = Path.Combine(AppContext.BaseDirectory, "ui");
+var hasUi = Directory.Exists(uiPath);
+if (hasUi)
+{
+    var ui = new PhysicalFileProvider(uiPath);
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = ui });
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = ui });
+}
 
 app.MapPost("/ingest", (IngestTrace trace, TraceStore store, LiveFeed live) =>
 {
@@ -63,7 +72,11 @@ app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken c
 });
 
 // Let the SPA handle its own routes.
-app.MapFallbackToFile("index.html");
+if (hasUi)
+    app.MapFallbackToFile("index.html", new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uiPath),
+    });
 
 app.Run();
 

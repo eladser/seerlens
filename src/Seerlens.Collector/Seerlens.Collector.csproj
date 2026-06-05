@@ -6,13 +6,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>seerlens</ToolCommandName>
+    <PackageId>Seerlens</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Elad Sertshuk</Authors>
+    <Description>Local-first DevTools for AI calls. See every LLM call your app makes: prompt, cost, tokens, latency, tool calls.</Description>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
   </ItemGroup>
 
   <!-- ship the built dashboard next to the binary so it serves from any working dir -->
   <ItemGroup>
-    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="ui\**" CopyToOutputDirectory="PreserveNewest" Pack="false" />
   </ItemGroup>
 
 </Project>

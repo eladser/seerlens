@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     // built into the collector so it can serve the UI itself
-    outDir: '../src/Seerlens.Collector/wwwroot',
+    outDir: '../src/Seerlens.Collector/ui',
     emptyOutDir: true,
   },
   server: {
