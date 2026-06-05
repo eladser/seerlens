@@ -13,6 +13,16 @@ await Ask(client, "gpt-4o-mini", "Summarize the Q3 board update in one line.");
 await Ask(client, "claude-3-5-sonnet", "Draft a reply to an unhappy customer.");
 await Ask(client, "gpt-4o-mini", "Find docs about refund policy.");
 
+// A call that fails, so the error state shows up in the dashboard.
+try
+{
+    await Ask(client, "gpt-4o", "This one will timeout on purpose.");
+}
+catch (TimeoutException)
+{
+    Console.WriteLine("[gpt-4o] timed out (recorded as a failed trace)");
+}
+
 // An agent-style interaction: two model calls with a tool lookup in between,
 // grouped into a single trace.
 using (SeerlensTrace.Begin("answer support ticket"))

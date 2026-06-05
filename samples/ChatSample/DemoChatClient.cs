@@ -23,6 +23,9 @@ sealed class DemoChatClient : IChatClient
         await Task.Delay(_rng.Next(180, 850), ct);
 
         var prompt = string.Concat(messages.Select(m => m.Text));
+        if (prompt.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+            throw new TimeoutException("request to the model timed out after 30s");
+
         var reply = Replies[_rng.Next(Replies.Length)];
 
         return new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
