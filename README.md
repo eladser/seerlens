@@ -94,6 +94,19 @@ const reply = await myLlm(prompt)
 span.complete({ prompt, completion: reply, inputTokens: 40, outputTokens: 12 })
 ```
 
+## Running evals
+
+Score a golden set against your prompts from the **Evals** tab. Drop a golden set JSON in `evals/` next to the collector, point it at any OpenAI-compatible provider, and hit Run:
+
+```bash
+# env vars, or a gitignored .env.local next to the collector
+SEERLENS_AI_BASE_URL=https://api.groq.com/openai/v1   # or OpenAI, Gemini, anything compatible
+SEERLENS_AI_KEY=...
+SEERLENS_AI_MODEL=llama-3.3-70b-versatile
+```
+
+Both scorers run each question through the provider to get an answer. **keyword** then checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against each case's criteria. Either way the run lands on the trend, so a model swap that drops quality shows up as a line heading down.
+
 ## How it works
 
 The collector takes traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. It accepts both a small JSON contract (what the .NET SDK posts) and raw OpenTelemetry traces at `/v1/traces`, normalizing GenAI spans from either into one model. The dashboard is a small React app the collector serves itself.
@@ -136,9 +149,10 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 
 ## Status and what's next
 
-Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends. On the list:
+Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends scored by keyword or an LLM judge, run straight from the dashboard. Ideas on the list:
 
-- **LLM-as-judge in the dashboard.** The eval engine already supports a model judge for faithfulness and relevancy; next is running it from the dashboard so you can pick the scorer per set.
+- **Golden sets from the UI.** Upload and edit golden sets in the dashboard instead of dropping JSON files in `evals/`.
+- **A hosted option.** Keep the local-first tool, add a deployable team version for shared dashboards.
 
 ## Made by
 

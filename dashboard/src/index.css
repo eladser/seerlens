@@ -346,3 +346,41 @@ body {
   word-break: break-word;
   color: var(--muted);
 }
+
+/* run an eval from the dashboard */
+.run-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.run-bar select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+.scorer-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.scorer-toggle button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.scorer-toggle button.on { background: var(--raise); color: var(--text); }
+.run-btn {
+  background: var(--teal);
+  color: #0d1117;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.run-btn:hover:not(:disabled) { filter: brightness(1.07); }
+.run-btn:disabled { opacity: 0.45; cursor: default; }
+.run-note { font-size: 12px; }
+.run-note code { font-family: var(--mono); font-size: 11px; }

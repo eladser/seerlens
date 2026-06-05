@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,9 +32,13 @@
     <None Include="..\..\docs\img\logo.png" Pack="true" PackagePath="icon.png" />
   </ItemGroup>
 
-  <!-- ship the built dashboard next to the binary so it serves from any working dir -->
+  <!-- ship the built dashboard and the seed golden sets next to the binary -->
   <ItemGroup>
     <Content Include="ui\**" CopyToOutputDirectory="PreserveNewest" Pack="false" />
+    <Content Update="evals\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seerlens.Evals\Seerlens.Evals.csproj" />
   </ItemGroup>
 
 </Project>
