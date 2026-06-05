@@ -1,12 +1,8 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/banner.png" alt="Seerlens, DevTools for AI calls" width="760" />
-</p>
+![Seerlens, DevTools for AI calls](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/banner.png)
 
-<p align="center">
-  <a href="https://www.nuget.org/packages/Seerlens"><img src="https://img.shields.io/nuget/v/Seerlens?label=tool" alt="tool on nuget" /></a>
-  <a href="https://www.nuget.org/packages/Seerlens.Sdk"><img src="https://img.shields.io/nuget/v/Seerlens.Sdk?label=sdk" alt="sdk on nuget" /></a>
-  <a href="https://github.com/eladser/seerlens/actions/workflows/ci.yml"><img src="https://github.com/eladser/seerlens/actions/workflows/ci.yml/badge.svg" alt="ci" /></a>
-</p>
+[![tool on nuget](https://img.shields.io/nuget/v/Seerlens?label=tool)](https://www.nuget.org/packages/Seerlens)
+[![sdk on nuget](https://img.shields.io/nuget/v/Seerlens.Sdk?label=sdk)](https://www.nuget.org/packages/Seerlens.Sdk)
+[![ci](https://github.com/eladser/seerlens/actions/workflows/ci.yml/badge.svg)](https://github.com/eladser/seerlens/actions/workflows/ci.yml)
 
 DevTools for AI calls. One line of setup and a local dashboard shows every LLM call your app makes: the prompt, what it cost, how many tokens, how long it took, and which tools it called. Runs on your machine. No signup.
 
