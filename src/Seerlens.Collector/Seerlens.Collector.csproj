@@ -18,6 +18,7 @@
     <RepositoryUrl>https://github.com/eladser/seerlens</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageTags>llm;ai;observability;tracing;openai;telemetry;devtools</PackageTags>
   </PropertyGroup>
 
@@ -27,6 +28,7 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\docs\img\logo.png" Pack="true" PackagePath="icon.png" />
   </ItemGroup>
 
   <!-- ship the built dashboard next to the binary so it serves from any working dir -->
