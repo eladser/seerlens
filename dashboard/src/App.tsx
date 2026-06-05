@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { EvalsView } from './components/EvalsView'
 import { TraceDetail } from './components/TraceDetail'
 import { TraceList } from './components/TraceList'
 import { dur, money } from './format'
@@ -7,6 +8,7 @@ import { useLive } from './useLive'
 export default function App() {
   const { traces, latestId, connected } = useLive()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [view, setView] = useState<'traces' | 'evals'>('traces')
 
   // show the newest trace on first load instead of an empty pane
   useEffect(() => {
@@ -32,34 +34,46 @@ export default function App() {
             {connected ? 'live' : 'offline'}
           </span>
         </div>
-        <div className="topbar-stats">
-          <span><b>{stats.count}</b> traces</span>
-          <span><b>{money(stats.cost)}</b> spent</span>
-          <span><b>{dur(stats.avg)}</b> avg latency</span>
-        </div>
+        <nav className="nav">
+          <button className={view === 'traces' ? 'on' : ''} onClick={() => setView('traces')}>Traces</button>
+          <button className={view === 'evals' ? 'on' : ''} onClick={() => setView('evals')}>Evals</button>
+        </nav>
+        {view === 'traces' && (
+          <div className="topbar-stats">
+            <span><b>{stats.count}</b> traces</span>
+            <span><b>{money(stats.cost)}</b> spent</span>
+            <span><b>{dur(stats.avg)}</b> avg latency</span>
+          </div>
+        )}
       </header>
 
-      <main className="layout">
-        <aside className="sidebar">
-          <div className="sidebar-scroll">
-            <TraceList
-              traces={traces}
-              selectedId={selectedId}
-              latestId={latestId}
-              onSelect={setSelectedId}
-            />
-          </div>
-          <footer className="sidebar-footer">
-            <a href="https://github.com/eladser" target="_blank" rel="noreferrer">eladser</a>
-            <a href="https://ko-fi.com/eladser" target="_blank" rel="noreferrer">ko-fi</a>
-          </footer>
-        </aside>
-        <section className="content">
-          {selectedId
-            ? <TraceDetail traceId={selectedId} />
-            : <div className="empty">Pick a trace to see what the model did.</div>}
-        </section>
-      </main>
+      {view === 'traces' ? (
+        <main className="layout">
+          <aside className="sidebar">
+            <div className="sidebar-scroll">
+              <TraceList
+                traces={traces}
+                selectedId={selectedId}
+                latestId={latestId}
+                onSelect={setSelectedId}
+              />
+            </div>
+            <footer className="sidebar-footer">
+              <a href="https://github.com/eladser" target="_blank" rel="noreferrer">eladser</a>
+              <a href="https://ko-fi.com/eladser" target="_blank" rel="noreferrer">ko-fi</a>
+            </footer>
+          </aside>
+          <section className="content">
+            {selectedId
+              ? <TraceDetail traceId={selectedId} />
+              : <div className="empty">Pick a trace to see what the model did.</div>}
+          </section>
+        </main>
+      ) : (
+        <main className="content eval-main">
+          <EvalsView />
+        </main>
+      )}
     </div>
   )
 }

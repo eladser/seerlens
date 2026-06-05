@@ -1,0 +1,23 @@
+{
+  "name": "support",
+  "cases": [
+    {
+      "id": "order",
+      "input": "Where is my order #5521?",
+      "keywords": ["shipped", "thursday"],
+      "criteria": "says the order shipped and gives an arrival day"
+    },
+    {
+      "id": "refund",
+      "input": "What is your refund policy?",
+      "keywords": ["30", "days", "refund"],
+      "criteria": "states the refund window in days"
+    },
+    {
+      "id": "hours",
+      "input": "What are your support hours?",
+      "keywords": ["9", "5", "weekdays"],
+      "criteria": "gives the opening hours and which days"
+    }
+  ]
+}

@@ -270,3 +270,79 @@ body {
 .sk-title { width: 240px; height: 18px; margin-bottom: 18px; }
 .sk-stat { width: 70px; height: 34px; }
 .sk-rows { height: 180px; margin-top: 22px; }
+
+/* top nav */
+.nav { display: flex; gap: 4px; }
+.nav button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.nav button:hover { color: var(--text); }
+.nav button.on { color: var(--text); background: var(--raise); }
+
+/* score colors, shared by the chart, table, and case rows */
+.good { color: var(--ok); }
+.mid { color: oklch(0.82 0.13 80); }
+.bad { color: var(--err); }
+
+/* evals */
+.eval-main { padding: 22px 26px; }
+.evals { max-width: 760px; }
+
+.set-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.set-tab {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.set-tab.on { color: var(--text); border-color: var(--teal); }
+
+.eval-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+.eval-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+
+.trend { width: 100%; height: auto; display: block; margin-bottom: 18px; }
+.grid-line { stroke: var(--border); }
+.grid-label { fill: var(--faint); font-family: var(--mono); font-size: 10px; }
+.trend-line { stroke: var(--teal); stroke-width: 2; }
+.trend-dot {
+  fill: var(--teal);
+  stroke: var(--bg);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r 120ms var(--ease);
+}
+.trend-dot.drop { fill: var(--coral); }
+.trend-dot.selected { stroke: var(--text); }
+
+.runs { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; }
+.runs td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.runs tr { cursor: pointer; }
+.runs tr:hover td { background: var(--panel); }
+.runs tr.selected td { background: var(--raise); }
+.runs td.num { font-weight: 600; }
+
+.eval-cases { display: flex; flex-direction: column; gap: 12px; }
+.eval-case { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.case-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.case-score { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.case-input { font-weight: 500; }
+.eval-case pre {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+}
