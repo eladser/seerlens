@@ -18,6 +18,7 @@ public sealed class TraceStore
     void Init()
     {
         using var db = Open();
+        Exec(db, "pragma journal_mode=wal;");
         Exec(db, """
             create table if not exists traces (
                 id text primary key,
@@ -76,7 +77,7 @@ public sealed class TraceStore
             t.Model, t.Status, promptTokens, completionTokens, cost);
 
         using var db = Open();
-        using var tx = db.BeginTransaction();
+        using var tx = db.BeginTransaction(); // rolls back if a span insert throws before Commit
 
         using (var cmd = db.CreateCommand())
         {

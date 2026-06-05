@@ -10,9 +10,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory,
 });
 
-var dbPath = builder.Configuration["SEERLENS_DB"]
-    ?? Environment.GetEnvironmentVariable("SEERLENS_DB")
-    ?? "seerlens.db";
+var dbPath = builder.Configuration["SEERLENS_DB"] ?? "seerlens.db";
 
 builder.WebHost.UseUrls(
     Environment.GetEnvironmentVariable("SEERLENS_URL") ?? "http://localhost:5005");
