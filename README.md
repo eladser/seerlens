@@ -6,7 +6,7 @@ DevTools for AI calls. One line of setup and a local dashboard shows every LLM c
 
 Think of it as the browser Network tab, pointed at your AI calls.
 
-![Seerlens trace waterfall](docs/img/trace-waterfall.png)
+![Seerlens demo](docs/img/demo.gif)
 
 ## The problem
 
