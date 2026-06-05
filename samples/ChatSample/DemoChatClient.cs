@@ -39,9 +39,24 @@ sealed class DemoChatClient : IChatClient
         };
     }
 
-    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
-        ChatOptions? options = null, CancellationToken ct = default)
-        => throw new NotSupportedException();
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+        ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var model = options?.ModelId ?? "gpt-4o";
+        var reply = Replies[_rng.Next(Replies.Length)];
+
+        foreach (var word in reply.Split(' '))
+        {
+            await Task.Delay(40, ct);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, word + " ") { ModelId = model };
+        }
+
+        yield return new ChatResponseUpdate
+        {
+            ModelId = model,
+            Contents = [new UsageContent(new UsageDetails { InputTokenCount = 30, OutputTokenCount = reply.Length / 3 })],
+        };
+    }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 

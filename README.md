@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/banner.png" alt="Seerlens, DevTools for AI calls" width="760" />
+  <img src="https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/banner.png" alt="Seerlens, DevTools for AI calls" width="760" />
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@ DevTools for AI calls. One line of setup and a local dashboard shows every LLM c
 
 Think of it as the browser Network tab, pointed at your AI calls.
 
-![Seerlens demo](docs/img/demo.gif)
+![Seerlens demo](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/demo.gif)
 
 ## The problem
 
@@ -29,7 +29,7 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 - **Failures, captured.** A call that throws is recorded with its error, so you can see what broke.
 - **Eval trends.** Score a golden set against your prompts and watch the number over time, so a model swap that drops quality shows up as a line heading down, not a surprise in production.
 
-![Failed call](docs/img/error-trace.png)
+![Failed call](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/error-trace.png)
 
 ## Quick start
 
@@ -120,9 +120,8 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 
 Live tracing for .NET, OTLP ingest for everything else, and eval trends. On the list:
 
-- **LLM-as-judge by default.** The eval engine already supports a model judge for faithfulness and relevancy; next is wiring it through the dashboard so you can pick the scorer per set.
+- **LLM-as-judge in the dashboard.** The eval engine already supports a model judge for faithfulness and relevancy; next is running it from the dashboard so you can pick the scorer per set.
 - **Python and JavaScript SDKs.** A thin one-line wrapper like the .NET one, for apps that don't already run OpenTelemetry.
-- **Streaming.** Token-by-token responses pass through but aren't yet recorded as their own spans.
 
 ## Made by
 

@@ -14,6 +14,12 @@ await Ask(client, "gpt-4o-mini", "Summarize the Q3 board update in one line.");
 await Ask(client, "claude-3-5-sonnet", "Draft a reply to an unhappy customer.");
 await Ask(client, "gpt-4o-mini", "Find docs about refund policy.");
 
+// A streaming call. It's recorded as one span once the stream finishes.
+await foreach (var _ in client.GetStreamingResponseAsync(
+    [new ChatMessage(ChatRole.User, "Stream a short greeting.")],
+    new ChatOptions { ModelId = "gpt-4o" })) { }
+Console.WriteLine("[gpt-4o] streamed a reply");
+
 // A call that fails, so the error state shows up in the dashboard.
 try
 {
