@@ -2,6 +2,12 @@
   <img src="docs/img/banner.png" alt="Seerlens, DevTools for AI calls" width="760" />
 </p>
 
+<p align="center">
+  <a href="https://www.nuget.org/packages/Seerlens"><img src="https://img.shields.io/nuget/v/Seerlens?label=tool" alt="tool on nuget" /></a>
+  <a href="https://www.nuget.org/packages/Seerlens.Sdk"><img src="https://img.shields.io/nuget/v/Seerlens.Sdk?label=sdk" alt="sdk on nuget" /></a>
+  <a href="https://github.com/eladser/seerlens/actions/workflows/ci.yml"><img src="https://github.com/eladser/seerlens/actions/workflows/ci.yml/badge.svg" alt="ci" /></a>
+</p>
+
 DevTools for AI calls. One line of setup and a local dashboard shows every LLM call your app makes: the prompt, what it cost, how many tokens, how long it took, and which tools it called. Runs on your machine. No signup.
 
 Think of it as the browser Network tab, pointed at your AI calls.
@@ -65,9 +71,13 @@ The SDK ships traces on a background queue. If the collector is down or busy, tr
 - **No .NET installed?** Grab a self-contained build (`seerlens-win-x64.zip`, `linux-x64`, `osx-arm64`) from the [releases](https://github.com/eladser/seerlens/releases) and run the `seerlens` binary inside.
 - **SDK on NuGet:** `dotnet add package Seerlens.Sdk`.
 
+### From other languages
+
+The collector speaks OTLP. Point any OpenTelemetry exporter at `http://localhost:5005/v1/traces` and spans that follow the GenAI conventions (Python via OpenLLMetry, JS, and so on) show up the same as the .NET ones, no Seerlens SDK needed.
+
 ## How it works
 
-The collector takes traces over a small JSON contract, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. The trace shape follows the OpenTelemetry GenAI conventions (model, tokens, tool calls, timing), which keeps the door open to ingesting raw OTLP later so any instrumented app shows up with no SDK. The dashboard is a small React app the collector serves itself.
+The collector takes traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. It accepts both a small JSON contract (what the .NET SDK posts) and raw OpenTelemetry traces at `/v1/traces`, normalizing GenAI spans from either into one model. The dashboard is a small React app the collector serves itself.
 
 ```
 your app ──► Seerlens SDK ──► collector ──► SQLite
@@ -106,11 +116,10 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 
 ## Status and what's next
 
-This is the first cut: live tracing for .NET, shipped as a tool. On the list:
+Live tracing works for .NET, plus OTLP ingest for everything else. On the list:
 
 - **Evals.** Run a golden set against your prompts and track answer quality over time, so a model swap that drops quality shows up as a trend, not a surprise in production.
-- **Native OTLP ingest.** Accept raw OpenTelemetry traces so any instrumented app shows up with no SDK at all.
-- **Python and JavaScript SDKs.** The same thin wrapper as the .NET one, posting to the same contract.
+- **Python and JavaScript SDKs.** A thin one-line wrapper like the .NET one, for apps that don't already run OpenTelemetry.
 - **Streaming.** Token-by-token responses pass through but aren't yet recorded as their own spans.
 
 ## Made by

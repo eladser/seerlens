@@ -40,6 +40,15 @@ app.MapPost("/ingest", (IngestTrace trace, TraceStore store, LiveFeed live) =>
     return Results.Accepted();
 });
 
+// Standard OpenTelemetry trace ingest, so any OTel-instrumented app can send
+// GenAI spans here with no Seerlens SDK.
+app.MapPost("/v1/traces", (OtlpRequest req, TraceStore store, LiveFeed live) =>
+{
+    foreach (var trace in Otlp.ToTraces(req))
+        live.Publish(store.Add(trace));
+    return Results.Ok(new { });
+});
+
 app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(limit ?? 200));
 
 app.MapGet("/api/traces/{id}", (string id, TraceStore store) =>
