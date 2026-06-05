@@ -61,7 +61,10 @@ public static class Otlp
 
     static Mapped Map(OtlpSpan span)
     {
-        var attr = (span.Attributes ?? []).ToDictionary(a => a.Key, a => a.Value, StringComparer.Ordinal);
+        // last value wins; an exporter sending a key twice shouldn't crash ingest
+        var attr = new Dictionary<string, OtlpValue?>(StringComparer.Ordinal);
+        foreach (var a in span.Attributes ?? [])
+            attr[a.Key] = a.Value;
 
         var model = Str(attr, "gen_ai.response.model") ?? Str(attr, "gen_ai.request.model");
         var inTokens = Long(attr, "gen_ai.usage.input_tokens") ?? Long(attr, "gen_ai.usage.prompt_tokens");

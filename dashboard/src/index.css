@@ -384,3 +384,40 @@ body {
 .run-btn:disabled { opacity: 0.45; cursor: default; }
 .run-note { font-size: 12px; }
 .run-note code { font-family: var(--mono); font-size: 11px; }
+
+/* spend breakdown (traces landing) */
+.spend { padding: 22px 24px; max-width: 720px; }
+.spend-head { display: flex; gap: 28px; margin-bottom: 26px; }
+.spend-section { margin-bottom: 24px; }
+.spend-section h3 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--faint);
+  font-weight: 600;
+}
+.spend-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 78px 110px;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+}
+.spend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.spend-bar-track { height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
+.spend-bar { height: 100%; background: var(--teal); border-radius: 4px; min-width: 2px; }
+.spend-cost { text-align: right; }
+.spend-meta { font-size: 11px; }
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 16px 24px 0;
+  display: block;
+}
+.back-link:hover { color: var(--teal); }

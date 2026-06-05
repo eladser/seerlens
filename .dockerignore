@@ -6,6 +6,8 @@ src/Seerlens.Collector/ui
 dist
 nupkg
 .git
+.env.local
+*.env*
 *.db
 *.db-shm
 *.db-wal

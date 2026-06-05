@@ -19,3 +19,7 @@ src/Seerlens.Collector/ui/
 # build artifacts
 nupkg/
 dist/
+
+# python
+__pycache__/
+*.pyc
