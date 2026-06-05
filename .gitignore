@@ -13,5 +13,6 @@ src/Seerlens.Collector/ui/
 *.db-shm
 *.db-wal
 
-# packaged tool
+# build artifacts
 nupkg/
+dist/
