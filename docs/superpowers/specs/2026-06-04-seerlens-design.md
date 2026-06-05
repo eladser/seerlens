@@ -1,7 +1,9 @@
-# Aperture — Design Spec
+# Seerlens — Design Spec
 
-*Working title. DevTools for AI calls.*
+*DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
+
+Name vetted 2026-06-04: clean on npm/PyPI/NuGet and collision-free in the dev/AI/observability space (ruled out Seerlens, Loupe, Spotlight, Glimpse, and others as already taken). Ties to the existing AeroLens brand.
 
 ## Pitch
 
@@ -17,9 +19,9 @@ A developer building an AI feature, in the middle of the dev loop, who needs to 
 
 ## Positioning
 
-Existing tools (Langfuse, Arize Phoenix, Helicone) are **platforms you deploy** — multi-container, a cloud signup, a hosted team dashboard. Aperture is **DevTools you run locally** — one command, no signup, no cloud. The wedge is the dev loop, not production monitoring.
+Existing tools (Langfuse, Arize Phoenix, Helicone) are **platforms you deploy** — multi-container, a cloud signup, a hosted team dashboard. Seerlens is **DevTools you run locally** — one command, no signup, no cloud. The wedge is the dev loop, not production monitoring.
 
-This is honest: the language-agnostic LLM-observability space is not empty. Aperture competes on the *local-first developer experience* and cross-language reach, and on demonstrating the author can build the hard parts (a trace pipeline + an eval engine) to a polished, standards-based state.
+This is honest: the language-agnostic LLM-observability space is not empty. Seerlens competes on the *local-first developer experience* and cross-language reach, and on demonstrating the author can build the hard parts (a trace pipeline + an eval engine) to a polished, standards-based state.
 
 ## Core design decision
 
@@ -29,7 +31,7 @@ Everything is built on **OpenTelemetry GenAI semantic conventions** (`gen_ai.*` 
 
 | Component | Type | Job | Key dependencies |
 |---|---|---|---|
-| `aperture` | CLI / single binary | One command brings up collector + dashboard. The whole tool. | — |
+| `seerlens` | CLI / single binary | One command brings up collector + dashboard. The whole tool. | — |
 | Collector | HTTP service (ASP.NET Core) | OTLP/HTTP ingest endpoint. Validates + stores spans. Live-pushes to dashboard. | OpenTelemetry |
 | Store | Embedded DB (SQLite) | Traces, spans, eval runs. Zero-config, file-based. | SQLite |
 | Dashboard | Web app (React/TS + Vite) | Trace list, trace waterfall detail, token/cost rollups, eval trend charts. | — |
@@ -70,7 +72,7 @@ The eval engine owns the provider calls itself, so eval is language-agnostic —
 
 ## The two demos that sell it
 
-1. **Live trace.** Split screen: a chat app answering on the left, Aperture on the right lighting up with `820ms · $0.004 · 1,240 tokens · 3 tool calls`, expanding into a nested waterfall. Click a row, read the exact prompt and response.
+1. **Live trace.** Split screen: a chat app answering on the left, Seerlens on the right lighting up with `820ms · $0.004 · 1,240 tokens · 3 tool calls`, expanding into a nested waterfall. Click a row, read the exact prompt and response.
 2. **Regression catch.** "Switched GPT-4o → 4o-mini to save money; faithfulness dropped 0.91 → 0.78 on my golden set," shown as a trend line. The screenshot that says "I've run this in production."
 
 ## Scope and phases
@@ -81,11 +83,11 @@ De-risked so each phase is shippable on its own.
 - **Phase 1 — spine + demo (shippable alone).** Trace waterfall detail, token/cost/latency rollups, live feed, the **.NET starter SDK**. A strong portfolio piece even if it stops here.
 - **Phase 2 — depth.** Eval/regression engine + score-over-time charts. Multi-provider cost view (Groq/Mistral/Gemini/OpenAI/Claude). The senior-signal half.
 - **Phase 3 — reach.** Python + JS/TS starter SDKs. Cross-language demo.
-- **Phase 4 — stretch (optional).** An MCP agent over real infrastructure (AWS/K8s/Terraform, read-only) as a flagship demo app to point Aperture at. Parked unless time allows.
+- **Phase 4 — stretch (optional).** An MCP agent over real infrastructure (AWS/K8s/Terraform, read-only) as a flagship demo app to point Seerlens at. Parked unless time allows.
 
 ## Out of scope for v1 (YAGNI)
 
-Multi-tenant auth, hosted/cloud version, team collaboration, alerting, sampling config, ClickHouse/columnar store, RBAC. These are platform concerns; Aperture is a local dev tool. The README notes a possible hosted version as "what's next."
+Multi-tenant auth, hosted/cloud version, team collaboration, alerting, sampling config, ClickHouse/columnar store, RBAC. These are platform concerns; Seerlens is a local dev tool. The README notes a possible hosted version as "what's next."
 
 ## Senior-signal artifacts (bake in from day one)
 
@@ -114,7 +116,7 @@ These come straight from the hiring research and are what make the repo read as 
 
 ## Success criteria
 
-- `aperture` boots and shows a live trace from a real app in under a minute, from a clean machine.
+- `seerlens` boots and shows a live trace from a real app in under a minute, from a clean machine.
 - A regression is visible as a trend after switching models on a golden set.
 - Works from at least two languages by Phase 3.
 - README + repo pass the "30-second senior skim": problem clear, demo gif, evals folder, architecture doc, clean commits.
