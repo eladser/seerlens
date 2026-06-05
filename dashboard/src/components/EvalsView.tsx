@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getEvalRun, getEvals } from '../api'
+import { getEvalRun, getEvals, getSets, runEval, type SetsInfo } from '../api'
 import { ago } from '../format'
 import type { EvalRun, EvalRunDetail } from '../types'
 import { TrendChart } from './TrendChart'
 
+type Scorer = 'keyword' | 'llm-judge'
+
 export function EvalsView() {
   const [runs, setRuns] = useState<EvalRun[]>([])
+  const [info, setInfo] = useState<SetsInfo | null>(null)
   const [set, setSet] = useState<string | null>(null)
+  const [scorer, setScorer] = useState<Scorer>('keyword')
+  const [running, setRunning] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
   const [detail, setDetail] = useState<EvalRunDetail | null>(null)
 
-  useEffect(() => {
-    getEvals()
-      .then(rs => {
-        setRuns(rs)
-        if (rs.length) setSet(rs[0].set)
-      })
-      .catch(() => {})
-  }, [])
+  const load = () => getEvals().then(setRuns).catch(() => {})
 
-  const sets = useMemo(() => [...new Set(runs.map(r => r.set))], [runs])
-  const forSet = useMemo(() => runs.filter(r => r.set === set), [runs, set])
+  useEffect(() => { load() }, [])
+  useEffect(() => { getSets().then(setInfo).catch(() => {}) }, [])
+
+  // default the selected set once data arrives
+  useEffect(() => {
+    if (set) return
+    if (runs.length) setSet(runs[0].set)
+    else if (info?.sets.length) setSet(info.sets[0])
+  }, [runs, info, set])
 
   useEffect(() => {
     if (!runId) return setDetail(null)
@@ -29,13 +34,27 @@ export function EvalsView() {
     return () => { live = false }
   }, [runId])
 
-  if (runs.length === 0) {
-    return (
-      <div className="empty">
-        <p className="empty-title">No eval runs yet</p>
-        <p className="muted">Score a golden set against your prompts and the trend over time shows up here.</p>
-      </div>
-    )
+  const allSets = useMemo(() => {
+    const names = new Set<string>()
+    runs.forEach(r => names.add(r.set))
+    info?.sets.forEach(s => names.add(s))
+    return [...names]
+  }, [runs, info])
+
+  const forSet = useMemo(() => runs.filter(r => r.set === set), [runs, set])
+
+  async function run() {
+    if (!set || running) return
+    setRunning(true)
+    try {
+      await runEval(set, scorer)
+      await load()
+      setRunId(null)
+    } catch {
+      // surfaced by the disabled/idle state; nothing to do here
+    } finally {
+      setRunning(false)
+    }
   }
 
   const first = forSet[0]
@@ -44,59 +63,72 @@ export function EvalsView() {
 
   return (
     <div className="evals">
-      {sets.length > 1 && (
-        <div className="set-tabs">
-          {sets.map(s => (
-            <button
-              key={s}
-              className={'set-tab' + (s === set ? ' on' : '')}
-              onClick={() => { setSet(s); setRunId(null) }}
-            >
-              {s}
-            </button>
+      <div className="run-bar">
+        <select value={set ?? ''} onChange={e => { setSet(e.target.value); setRunId(null) }}>
+          {allSets.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <div className="scorer-toggle">
+          {(['keyword', 'llm-judge'] as Scorer[]).map(s => (
+            <button key={s} className={scorer === s ? 'on' : ''} onClick={() => setScorer(s)}>{s}</button>
           ))}
         </div>
-      )}
 
-      <div className="eval-head">
-        <h2>{set}</h2>
-        <span className="muted">{forSet.length} runs</span>
-        {latest && <span className="num">latest {pct(latest.score)}</span>}
-        {forSet.length > 1 && (
-          <span className={'num ' + (delta < 0 ? 'bad' : 'good')}>
-            {delta >= 0 ? '+' : ''}{pct(delta)} over time
-          </span>
-        )}
+        <button className="run-btn" onClick={run} disabled={!info?.aiConfigured || !set || running}>
+          {running ? 'running…' : 'Run eval'}
+        </button>
+
+        {info && (info.aiConfigured
+          ? <span className="muted run-note">{info.model}</span>
+          : <span className="muted run-note">set <code>SEERLENS_AI_*</code> to run from here</span>)}
       </div>
 
-      <TrendChart runs={forSet} selectedId={runId} onSelect={setRunId} />
-
-      <table className="runs">
-        <tbody>
-          {[...forSet].reverse().map(r => (
-            <tr key={r.id} className={r.id === runId ? 'selected' : ''} onClick={() => setRunId(r.id)}>
-              <td className={'num ' + scoreClass(r.score)}>{pct(r.score)}</td>
-              <td>{r.target}</td>
-              <td className="muted">{r.scorer}</td>
-              <td className="muted">{r.caseCount} cases</td>
-              <td className="muted">{ago(r.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {detail && (
-        <div className="eval-cases">
-          {detail.cases.map((c, i) => (
-            <div key={i} className="eval-case">
-              <div className="case-top">
-                <span className={'case-score ' + scoreClass(c.score)}>{pct(c.score)}</span>
-                <span className="case-input">{c.input}</span>
-              </div>
-              <pre>{c.answer}</pre>
-            </div>
-          ))}
+      {forSet.length === 0 ? (
+        <div className="empty">
+          <p className="muted">No runs yet for this set. Hit Run eval to score it.</p>
         </div>
+      ) : (
+        <>
+          <div className="eval-head">
+            <h2>{set}</h2>
+            <span className="num">latest {pct(latest.score)}</span>
+            {forSet.length > 1 && (
+              <span className={'num ' + (delta < 0 ? 'bad' : 'good')}>
+                {delta >= 0 ? '+' : ''}{pct(delta)} over time
+              </span>
+            )}
+          </div>
+
+          <TrendChart runs={forSet} selectedId={runId} onSelect={setRunId} />
+
+          <table className="runs">
+            <tbody>
+              {[...forSet].reverse().map(r => (
+                <tr key={r.id} className={r.id === runId ? 'selected' : ''} onClick={() => setRunId(r.id)}>
+                  <td className={'num ' + scoreClass(r.score)}>{pct(r.score)}</td>
+                  <td>{r.target}</td>
+                  <td className="muted">{r.scorer}</td>
+                  <td className="muted">{r.caseCount} cases</td>
+                  <td className="muted">{ago(r.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {detail && (
+            <div className="eval-cases">
+              {detail.cases.map((c, i) => (
+                <div key={i} className="eval-case">
+                  <div className="case-top">
+                    <span className={'case-score ' + scoreClass(c.score)}>{pct(c.score)}</span>
+                    <span className="case-input">{c.input}</span>
+                  </div>
+                  <pre>{c.answer}</pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

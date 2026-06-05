@@ -1,0 +1,29 @@
+{
+  "name": "general",
+  "cases": [
+    {
+      "id": "capital",
+      "input": "What is the capital of France? Answer in one word.",
+      "keywords": ["Paris"],
+      "criteria": "names Paris as the capital"
+    },
+    {
+      "id": "math",
+      "input": "What is 17 + 25? Reply with just the number.",
+      "keywords": ["42"],
+      "criteria": "the answer is 42"
+    },
+    {
+      "id": "water",
+      "input": "What is the chemical formula for water?",
+      "keywords": ["H2O", "H₂O"],
+      "criteria": "states the formula is H2O"
+    },
+    {
+      "id": "planet",
+      "input": "Which planet is known as the Red Planet?",
+      "keywords": ["Mars"],
+      "criteria": "names Mars"
+    }
+  ]
+}

@@ -13,6 +13,9 @@ src/Seerlens.Collector/ui/
 *.db-shm
 *.db-wal
 
+# local provider keys
+.env.local
+
 # build artifacts
 nupkg/
 dist/

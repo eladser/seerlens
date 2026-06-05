@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
 using Seerlens.Collector;
+using Seerlens.Evals;
+
+LoadDotEnv(); // pick up SEERLENS_AI_* from .env.local for local dev
 
 // Anchor the content root to the binary, not the caller's working directory,
 // so the bundled dashboard is found wherever the tool is launched from.
@@ -17,6 +20,8 @@ builder.WebHost.UseUrls(
 
 builder.Services.AddSingleton(TraceStore.ForFile(dbPath));
 builder.Services.AddSingleton(EvalStore.ForFile(dbPath));
+builder.Services.AddSingleton(new AiProvider(builder.Configuration));
+builder.Services.AddSingleton(new GoldenSets());
 builder.Services.AddSingleton<LiveFeed>();
 
 var app = builder.Build();
@@ -66,6 +71,23 @@ app.MapGet("/api/evals", (EvalStore evals, string? set) => evals.List(set));
 app.MapGet("/api/evals/{id}", (string id, EvalStore evals) =>
     evals.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
 
+app.MapGet("/api/sets", (GoldenSets sets, AiProvider ai) =>
+    new { sets = sets.Names, aiConfigured = ai.Configured, model = ai.Model });
+
+// Run a golden set through the configured provider and score it. The target
+// produces the answers; the scorer is keyword (offline) or an LLM judge.
+app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, EvalStore evals) =>
+{
+    if (!ai.Configured)
+        return Results.BadRequest(new { error = "no provider configured; set SEERLENS_AI_BASE_URL/KEY/MODEL" });
+    if (sets.Get(req.Set) is not { } set)
+        return Results.NotFound(new { error = $"unknown set: {req.Set}" });
+
+    IScorer scorer = req.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
+    var run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
+    return Results.Ok(evals.Add(ToEvalRunIn(run)));
+});
+
 app.MapGet("/api/stats", (TraceStore store) => store.Stats());
 
 app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken ct) =>
@@ -98,5 +120,28 @@ if (hasUi)
     });
 
 app.Run();
+
+static void LoadDotEnv()
+{
+    var path = Path.Combine(Directory.GetCurrentDirectory(), ".env.local");
+    if (!File.Exists(path)) return;
+
+    foreach (var line in File.ReadAllLines(path))
+    {
+        var t = line.Trim();
+        if (t.Length == 0 || t.StartsWith('#')) continue;
+        var eq = t.IndexOf('=');
+        if (eq <= 0) continue;
+        var key = t[..eq].Trim();
+        if (Environment.GetEnvironmentVariable(key) is null)
+            Environment.SetEnvironmentVariable(key, t[(eq + 1)..].Trim());
+    }
+}
+
+static EvalRunIn ToEvalRunIn(Seerlens.Evals.EvalRun r) =>
+    new(r.Id, r.Set, r.Target, r.Scorer, r.CreatedAt, r.Score,
+        r.Cases.Select(c => new EvalCaseIn(c.Input, c.Answer, c.Score)).ToList());
+
+record RunRequest(string Set, string Scorer);
 
 public partial class Program { }

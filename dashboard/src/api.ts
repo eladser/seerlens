@@ -30,3 +30,21 @@ export async function getEvalRun(id: string): Promise<EvalRunDetail> {
   if (!r.ok) throw new Error(`eval ${id}: ${r.status}`)
   return r.json()
 }
+
+export type SetsInfo = { sets: string[]; aiConfigured: boolean; model: string }
+
+export async function getSets(): Promise<SetsInfo> {
+  const r = await fetch('/api/sets')
+  if (!r.ok) throw new Error(`sets: ${r.status}`)
+  return r.json()
+}
+
+export async function runEval(set: string, scorer: string): Promise<EvalRun> {
+  const r = await fetch('/eval/run', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ set, scorer }),
+  })
+  if (!r.ok) throw new Error(`run failed: ${r.status}`)
+  return r.json()
+}
