@@ -59,7 +59,7 @@ The SDK ships traces on a background queue. If the collector is down or busy, tr
 
 ## How it works
 
-Seerlens is built on the OpenTelemetry GenAI conventions, so it is not tied to one language. The collector receives traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. The dashboard is a small React app served by the collector itself.
+The collector takes traces over a small JSON contract, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. The trace shape follows the OpenTelemetry GenAI conventions (model, tokens, tool calls, timing), which keeps the door open to ingesting raw OTLP later so any instrumented app shows up with no SDK. The dashboard is a small React app the collector serves itself.
 
 ```
 your app ──► Seerlens SDK ──► collector ──► SQLite
@@ -101,8 +101,9 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 This is the first cut: live tracing for .NET, shipped as a tool. On the list:
 
 - **Evals.** Run a golden set against your prompts and track answer quality over time, so a model swap that drops quality shows up as a trend, not a surprise in production.
-- **Python and JavaScript SDKs.** The collector already speaks OpenTelemetry, so any OTel-instrumented app can send traces today; these are the one-line convenience wrappers.
-- **Streaming.** Token-by-token responses are passed through but not yet recorded as their own spans.
+- **Native OTLP ingest.** Accept raw OpenTelemetry traces so any instrumented app shows up with no SDK at all.
+- **Python and JavaScript SDKs.** The same thin wrapper as the .NET one, posting to the same contract.
+- **Streaming.** Token-by-token responses pass through but aren't yet recorded as their own spans.
 
 ## License
 
