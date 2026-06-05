@@ -1,4 +1,6 @@
-# Seerlens
+<p align="center">
+  <img src="docs/img/banner.png" alt="Seerlens, DevTools for AI calls" width="760" />
+</p>
 
 DevTools for AI calls. One line of setup and a local dashboard shows every LLM call your app makes: the prompt, what it cost, how many tokens, how long it took, and which tools it called. Runs on your machine. No signup.
 
@@ -59,6 +61,7 @@ The SDK ships traces on a background queue. If the collector is down or busy, tr
 
 ### Other ways to run it
 
+- **Docker:** `docker build -t seerlens . && docker run -p 5005:5005 seerlens`
 - **No .NET installed?** Grab a self-contained build (`seerlens-win-x64.zip`, `linux-x64`, `osx-arm64`) from the [releases](https://github.com/eladser/seerlens/releases) and run the `seerlens` binary inside.
 - **SDK on NuGet:** `dotnet add package Seerlens.Sdk`.
 

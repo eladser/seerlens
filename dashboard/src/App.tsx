@@ -25,6 +25,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
+          <img className="logo-mark" src="/favicon.png" alt="" width="22" height="22" />
           <span className="logo">Seerlens</span>
           <span className={'live' + (connected ? ' on' : '')}>
             <span className="live-dot" />

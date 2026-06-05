@@ -53,8 +53,9 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: center; gap: 14px; }
-.logo { font-weight: 650; font-size: 15px; letter-spacing: -0.2px; color: var(--text); }
+.brand { display: flex; align-items: center; gap: 9px; }
+.logo-mark { display: block; }
+.logo { font-weight: 650; font-size: 15px; letter-spacing: -0.2px; color: var(--text); margin-right: 5px; }
 
 .live {
   display: inline-flex;
