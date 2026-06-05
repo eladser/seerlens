@@ -58,8 +58,9 @@ public sealed class TraceStore
         long? promptTokens = null, completionTokens = null;
         double? cost = null;
 
-        var spans = new List<SpanRow>(t.Spans.Count);
-        foreach (var s in t.Spans)
+        var src = t.Spans ?? []; // a body that omits "spans" shouldn't NRE
+        var spans = new List<SpanRow>(src.Count);
+        foreach (var s in src)
         {
             var spanCost = s.Kind == "llm"
                 ? Pricing.CostFor(s.Model ?? t.Model, s.PromptTokens, s.CompletionTokens)

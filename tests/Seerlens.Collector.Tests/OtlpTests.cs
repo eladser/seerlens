@@ -73,6 +73,25 @@ public class OtlpTests
     }
 
     [Fact]
+    public void Duplicate_attribute_keys_do_not_crash_and_last_wins()
+    {
+        const string payload = """
+        {"resourceSpans":[{"scopeSpans":[{"spans":[
+          {"traceId":"t","spanId":"s","parentSpanId":"","name":"chat",
+           "startTimeUnixNano":"1700000000000000000","endTimeUnixNano":"1700000000100000000",
+           "attributes":[
+             {"key":"gen_ai.request.model","value":{"stringValue":"gpt-4o-mini"}},
+             {"key":"gen_ai.request.model","value":{"stringValue":"gpt-4o"}}
+           ],"status":{"code":1}}
+        ]}]}]}
+        """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(payload, Web)!;
+
+        var trace = Assert.Single(Otlp.ToTraces(req));
+        Assert.Equal("gpt-4o", trace.Model);
+    }
+
+    [Fact]
     public async Task Posting_to_v1_traces_stores_and_prices_the_trace()
     {
         using var factory = new Factory();

@@ -3,7 +3,7 @@
 *DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
 
-Name vetted 2026-06-04: clean on npm/PyPI/NuGet and collision-free in the dev/AI/observability space (ruled out Aperture, Loupe, Spotlight, Glimpse, and others as already taken). Ties to the existing AeroLens brand.
+**Status (v0.2.0):** Phases 0-3 shipped, plus the eval engine running from the dashboard (keyword + LLM judge) and a multi-provider spend breakdown. SDKs for .NET, Python, and JavaScript on top of OTLP ingest. Phase 4 (the MCP infra agent) stays parked.
 
 ## Pitch
 

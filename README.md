@@ -20,7 +20,7 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 
 - **Live trace feed.** Calls show up the moment they happen.
 - **A timeline per trace.** LLM calls and tool calls laid out on a real time ruler, so you can see what ran when and what was slow.
-- **Cost, tokens, latency** per call and per trace, priced across the common OpenAI, Anthropic, and Google models.
+- **Cost, tokens, latency** per call and per trace, plus a spend breakdown by provider and model, priced across the common OpenAI, Anthropic, and Google models.
 - **The actual prompt and completion**, not a summary.
 - **Failures, captured.** A call that throws is recorded with its error, so you can see what broke.
 - **Eval trends.** Score a golden set against your prompts and watch the number over time, so a model swap that drops quality shows up as a line heading down, not a surprise in production.
@@ -64,9 +64,11 @@ The SDK ships traces on a background queue. If the collector is down or busy, tr
 
 ### Other ways to run it
 
-- **Docker:** `docker build -t seerlens . && docker run -p 5005:5005 seerlens`
+- **Docker:** `docker build -t seerlens . && docker run -p 127.0.0.1:5005:5005 seerlens`
 - **No .NET installed?** Grab a self-contained build (`seerlens-win-x64.zip`, `linux-x64`, `osx-arm64`) from the [releases](https://github.com/eladser/seerlens/releases) and run the `seerlens` binary inside.
 - **SDK on NuGet:** `dotnet add package Seerlens.Sdk`.
+
+The collector has no auth, by design: it binds `localhost` and the Docker example publishes only to `127.0.0.1`. It's a local dev tool. If you put it on a shared host or a network, gate it yourself, the captured prompts and your provider key are worth protecting.
 
 ### From other languages
 
@@ -92,25 +94,59 @@ span.complete({ prompt, completion: reply, inputTokens: 40, outputTokens: 12 })
 
 ## Running evals
 
-Score a golden set against your prompts from the **Evals** tab. Drop a golden set JSON in `evals/` next to the collector, point it at any OpenAI-compatible provider, and hit Run:
+An eval is a quality test for your AI's answers, the part you can't catch with normal tests. AI doesn't crash when it gets worse, it just quietly gives worse answers. So you write a small set of questions where you know what a good answer looks like (a "golden set"), Seerlens runs them through a model and scores the answers, and a drop after a prompt tweak or a model swap shows up as the trend heading down.
+
+**You write the golden set**, because only you know what a good answer is for your app. Drop a JSON file in `evals/` next to the collector:
+
+```json
+{
+  "name": "support",
+  "cases": [
+    { "input": "What is your refund policy?", "keywords": ["30", "days"], "criteria": "states the refund window in days" },
+    { "input": "Where is my order #5521?", "keywords": ["shipped"], "criteria": "says it shipped and gives an arrival day" }
+  ]
+}
+```
+
+- `input` is a real question your app handles.
+- `keywords` are terms a good answer must contain (used by the offline scorer).
+- `criteria` is a plain-English rubric the LLM judge grades against.
+
+To run it, point the collector at any OpenAI-compatible provider:
 
 ```bash
-# env vars, or a gitignored .env.local next to the collector
+# copy .env.local.example to .env.local next to the collector, or set env vars
 SEERLENS_AI_BASE_URL=https://api.groq.com/openai/v1   # or OpenAI, Gemini, anything compatible
 SEERLENS_AI_KEY=...
 SEERLENS_AI_MODEL=llama-3.3-70b-versatile
 ```
 
-Both scorers run each question through the provider to get an answer. **keyword** then checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against each case's criteria. Either way the run lands on the trend, so a model swap that drops quality shows up as a line heading down.
+Then pick the set in the **Evals** tab and hit Run. Both scorers send each question to the model to get an answer. **keyword** checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against the criteria. The run lands on the trend.
+
+![Run an eval from the dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-run.png)
+
+## A look around
+
+Spend by provider and model, so you can see where the money goes:
+
+![Spend by provider and model](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/cost-breakdown.png)
+
+A nested trace: model calls and tool calls on a real time ruler, with the exact prompt and completion:
+
+![Trace waterfall](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/trace-waterfall.png)
+
+Answer quality over time. Here the score falls off a cliff after a model swap:
+
+![Eval trend](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-trend.png)
 
 ## How it works
 
 The collector takes traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. It accepts both a small JSON contract (what the .NET SDK posts) and raw OpenTelemetry traces at `/v1/traces`, normalizing GenAI spans from either into one model. The dashboard is a small React app the collector serves itself.
 
 ```
-your app ──► Seerlens SDK ──► collector ──► SQLite
-                                  │
-                                  └──► live feed (SSE) ──► dashboard
+your app ──► Seerlens SDK (or any OTLP exporter) ──► collector ──► SQLite
+                                                          │
+                                                          └──► live feed (SSE) ──► dashboard
 ```
 
 | Piece | What it is |
@@ -138,17 +174,20 @@ The sample uses a fake model client, so it runs without any API keys.
 ## Tests
 
 ```bash
-dotnet test
+dotnet test                           # collector + .NET SDK
+cd sdk/python && python -m unittest    # python SDK
+cd sdk/js && node --test               # js SDK
 ```
 
-Covers the store and pricing, the ingest endpoint, and the SDK's safety contract (it records on success, rethrows real errors, and a broken collector can't break the host app).
+The .NET tests cover the store and pricing, OTLP span mapping, the ingest and eval endpoints, and the SDK's safety contract (it records on success, rethrows real errors, and a broken collector can't break the host app). The Python and JS tests check the OTLP payload each SDK builds. All three suites run in CI on every push.
 
 ## Status and what's next
 
-Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends scored by keyword or an LLM judge, run straight from the dashboard. Ideas on the list:
+Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends scored by keyword or an LLM judge, run straight from the dashboard. Next up, evals get deeper (full plan in the [roadmap](docs/roadmap.md)):
 
-- **Golden sets from the UI.** Upload and edit golden sets in the dashboard instead of dropping JSON files in `evals/`.
-- **A hosted option.** Keep the local-first tool, add a deployable team version for shared dashboards.
+- **Evals in CI**, a command that fails the build when answer quality drops.
+- **Model comparison**, run a golden set across models and see quality and cost side by side.
+- **Author evals in the dashboard**, including turning a real trace into a test case.
 
 ## Made by
 

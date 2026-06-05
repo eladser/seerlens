@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { CostBreakdown } from './components/CostBreakdown'
 import { EvalsView } from './components/EvalsView'
 import { TraceDetail } from './components/TraceDetail'
 import { TraceList } from './components/TraceList'
@@ -9,11 +10,6 @@ export default function App() {
   const { traces, latestId, connected } = useLive()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<'traces' | 'evals'>('traces')
-
-  // show the newest trace on first load instead of an empty pane
-  useEffect(() => {
-    if (!selectedId && traces.length) setSelectedId(traces[0].id)
-  }, [traces, selectedId])
 
   const stats = useMemo(() => {
     const cost = traces.reduce((sum, t) => sum + (t.costUsd ?? 0), 0)
@@ -64,9 +60,14 @@ export default function App() {
             </footer>
           </aside>
           <section className="content">
-            {selectedId
-              ? <TraceDetail traceId={selectedId} />
-              : <div className="empty">Pick a trace to see what the model did.</div>}
+            {selectedId ? (
+              <>
+                <button className="back-link" onClick={() => setSelectedId(null)}>← spend overview</button>
+                <TraceDetail traceId={selectedId} />
+              </>
+            ) : (
+              <CostBreakdown traces={traces} />
+            )}
           </section>
         </main>
       ) : (

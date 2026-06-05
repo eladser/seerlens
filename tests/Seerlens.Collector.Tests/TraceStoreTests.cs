@@ -64,6 +64,15 @@ public class TraceStoreTests : IDisposable
     }
 
     [Fact]
+    public void Trace_with_null_spans_does_not_crash()
+    {
+        var summary = _store.Add(new IngestTrace("t1", "chat", 1000, 50, "openai", "gpt-4o", "ok", null!));
+
+        Assert.Equal("t1", summary.Id);
+        Assert.NotNull(_store.Get("t1"));
+    }
+
+    [Fact]
     public void Stats_aggregates_traces()
     {
         _store.Add(Sample("t1", 1000));
