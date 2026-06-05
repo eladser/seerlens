@@ -32,3 +32,7 @@ jobs:
       - name: python sdk tests
         run: python3 -m unittest
         working-directory: sdk/python
+
+      - name: js sdk tests
+        run: node --test
+        working-directory: sdk/js
