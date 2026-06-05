@@ -9,7 +9,7 @@ public class SeerlensChatClientTests
     public async Task Records_a_trace_with_model_and_tokens()
     {
         var sink = new CapturingSink();
-        Seerlens.UseSink(sink);
+        SeerlensTrace.UseSink(sink);
 
         var client = new FakeChatClient("hi", "gpt-4o", 120, 30).UseSeerlens();
         await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")]);
@@ -26,7 +26,7 @@ public class SeerlensChatClientTests
     public async Task Rethrows_inner_error_and_still_records_it()
     {
         var sink = new CapturingSink();
-        Seerlens.UseSink(sink);
+        SeerlensTrace.UseSink(sink);
 
         var client = new FakeChatClient(new TimeoutException("upstream down")).UseSeerlens();
 
@@ -41,7 +41,7 @@ public class SeerlensChatClientTests
     [Fact]
     public async Task A_failing_sink_does_not_break_the_call()
     {
-        Seerlens.UseSink(new ThrowingSink());
+        SeerlensTrace.UseSink(new ThrowingSink());
 
         var client = new FakeChatClient("hi", "gpt-4o", 1, 1).UseSeerlens();
         var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")]);
@@ -53,14 +53,14 @@ public class SeerlensChatClientTests
     public async Task BeginTrace_groups_calls_and_tools_into_one_trace()
     {
         var sink = new CapturingSink();
-        Seerlens.UseSink(sink);
+        SeerlensTrace.UseSink(sink);
 
         var client = new FakeChatClient("answer", "gpt-4o", 50, 20).UseSeerlens();
 
-        using (Seerlens.BeginTrace("support question"))
+        using (SeerlensTrace.Begin("support question"))
         {
             await client.GetResponseAsync([new ChatMessage(ChatRole.User, "where is my order")]);
-            using (Seerlens.Tool("lookupOrder")) { await Task.Delay(1); }
+            using (SeerlensTrace.Tool("lookupOrder")) { await Task.Delay(1); }
             await client.GetResponseAsync([new ChatMessage(ChatRole.User, "thanks")]);
         }
 

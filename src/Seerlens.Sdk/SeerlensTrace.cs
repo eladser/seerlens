@@ -7,7 +7,7 @@ namespace Seerlens.Sdk;
 /// IChatClient with <c>.UseSeerlens()</c>. Calls are recorded and shipped in the
 /// background. If no collector is configured, everything is a no-op.
 /// </summary>
-public static class Seerlens
+public static class SeerlensTrace
 {
     static ITraceSink? _sink;
     static readonly AsyncLocal<TraceBuilder?> _current = new();
@@ -17,7 +17,7 @@ public static class Seerlens
     internal static void UseSink(ITraceSink sink) => _sink = sink;
 
     // Group several calls (and the tool work between them) into one trace.
-    public static IDisposable BeginTrace(string name)
+    public static IDisposable Begin(string name)
     {
         var trace = new TraceBuilder(name);
         _current.Value = trace;

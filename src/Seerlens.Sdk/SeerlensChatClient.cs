@@ -41,7 +41,7 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
                 response is null ? null : TextOf(response.Messages),
                 error?.Message);
 
-            Seerlens.Record(span);
+            SeerlensTrace.Record(span);
         }
         catch
         {
