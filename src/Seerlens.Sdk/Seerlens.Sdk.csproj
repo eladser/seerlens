@@ -10,4 +10,8 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Seerlens.Sdk.Tests" />
+  </ItemGroup>
+
 </Project>
