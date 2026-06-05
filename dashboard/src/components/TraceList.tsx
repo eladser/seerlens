@@ -12,8 +12,10 @@ export function TraceList({ traces, selectedId, latestId, onSelect }: Props) {
   if (traces.length === 0) {
     return (
       <div className="empty list-empty">
-        <p>No traces yet.</p>
-        <p className="muted">Run an app wired with the Seerlens SDK and calls show up here.</p>
+        <p className="empty-title">Waiting for traces</p>
+        <p className="muted">
+          Point an app at this collector with the Seerlens SDK and its AI calls land here, live.
+        </p>
       </div>
     )
   }
@@ -30,18 +32,27 @@ export function TraceList({ traces, selectedId, latestId, onSelect }: Props) {
           }
           onClick={() => onSelect(t.id)}
         >
-          <div className="row-top">
-            <span className={'dot ' + (t.status === 'ok' ? 'ok' : 'err')} />
-            <span className="row-name">{t.name}</span>
-            <span className="row-time">{ago(t.startedAt)}</span>
-          </div>
-          <div className="row-bottom muted">
-            {t.model && <span className="badge">{t.model}</span>}
-            <span>{dur(t.durationMs)}</span>
-            <span>{money(t.costUsd)}</span>
+          <span className={'mono-mark prov-' + (t.provider ?? 'none')}>
+            {mark(t.provider, t.model)}
+          </span>
+          <div className="row-body">
+            <div className="row-top">
+              <span className="row-name">{t.name}</span>
+              <span className="row-time">{ago(t.startedAt)}</span>
+            </div>
+            <div className="row-meta">
+              <span className={'dot ' + (t.status === 'ok' ? 'ok' : 'err')} />
+              <span className="num">{dur(t.durationMs)}</span>
+              <span className="num">{money(t.costUsd)}</span>
+            </div>
           </div>
         </li>
       ))}
     </ul>
   )
+}
+
+function mark(provider: string | null, model: string | null): string {
+  const src = provider ?? model ?? '?'
+  return src[0]!.toUpperCase()
 }

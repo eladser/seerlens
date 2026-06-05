@@ -7,6 +7,7 @@ import type { TraceSummary } from './types'
 export function useLive() {
   const [traces, setTraces] = useState<TraceSummary[]>([])
   const [latestId, setLatestId] = useState<string | null>(null)
+  const [connected, setConnected] = useState(false)
   const seen = useRef(new Set<string>())
 
   useEffect(() => {
@@ -19,6 +20,8 @@ export function useLive() {
     })
 
     const es = new EventSource('/events')
+    es.onopen = () => setConnected(true)
+    es.onerror = () => setConnected(false)
     es.onmessage = e => {
       const t: TraceSummary = JSON.parse(e.data)
       if (seen.current.has(t.id)) return
@@ -33,5 +36,5 @@ export function useLive() {
     }
   }, [])
 
-  return { traces, latestId }
+  return { traces, latestId, connected }
 }

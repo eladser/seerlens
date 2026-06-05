@@ -22,7 +22,7 @@ export function TraceDetail({ traceId }: { traceId: string }) {
     }
   }, [traceId])
 
-  if (!detail) return <div className="empty">Loading trace…</div>
+  if (!detail) return <DetailSkeleton />
 
   const { trace, spans } = detail
   const span = spans.find(s => s.id === spanId) ?? null
@@ -77,6 +77,18 @@ function SpanView({ span }: { span: Span }) {
           <pre>{span.completionText}</pre>
         </section>
       )}
+    </div>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="detail">
+      <div className="sk sk-title" />
+      <div className="detail-stats">
+        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="sk sk-stat" />)}
+      </div>
+      <div className="sk sk-rows" />
     </div>
   )
 }

@@ -1,12 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TraceDetail } from './components/TraceDetail'
 import { TraceList } from './components/TraceList'
 import { dur, money } from './format'
 import { useLive } from './useLive'
 
 export default function App() {
-  const { traces, latestId } = useLive()
+  const { traces, latestId, connected } = useLive()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // show the newest trace on first load instead of an empty pane
+  useEffect(() => {
+    if (!selectedId && traces.length) setSelectedId(traces[0].id)
+  }, [traces, selectedId])
 
   const stats = useMemo(() => {
     const cost = traces.reduce((sum, t) => sum + (t.costUsd ?? 0), 0)
@@ -21,12 +26,15 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <span className="logo">Seerlens</span>
-          <span className="muted">DevTools for AI calls</span>
+          <span className={'live' + (connected ? ' on' : '')}>
+            <span className="live-dot" />
+            {connected ? 'live' : 'offline'}
+          </span>
         </div>
         <div className="topbar-stats">
           <span><b>{stats.count}</b> traces</span>
-          <span><b>{money(stats.cost)}</b> total</span>
-          <span><b>{dur(stats.avg)}</b> avg</span>
+          <span><b>{money(stats.cost)}</b> spent</span>
+          <span><b>{dur(stats.avg)}</b> avg latency</span>
         </div>
       </header>
 
