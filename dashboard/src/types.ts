@@ -37,3 +37,17 @@ export type Stats = {
   totalCostUsd: number
   avgDurationMs: number
 }
+
+export type EvalRun = {
+  id: string
+  set: string
+  target: string
+  scorer: string
+  createdAt: number
+  score: number
+  caseCount: number
+}
+
+export type EvalCase = { input: string; answer: string; score: number }
+
+export type EvalRunDetail = { run: EvalRun; cases: EvalCase[] }

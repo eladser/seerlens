@@ -1,5 +1,6 @@
 using ChatSample;
 using Microsoft.Extensions.AI;
+using Seerlens.Evals;
 using Seerlens.Sdk;
 
 var collector = Environment.GetEnvironmentVariable("SEERLENS_URL") ?? "http://localhost:5005";
@@ -33,10 +34,28 @@ using (SeerlensTrace.Begin("answer support ticket"))
     await Ask(client, "gpt-4o", "Order found, write the customer reply.");
 }
 
-Console.WriteLine($"Sent traces to Seerlens. Open {collector} to see them.");
+// Evals: score a golden set a few times. The last run switches to a cheaper model
+// that answers worse, so the trend shows the regression.
+var golden = GoldenSet.Load(Path.Combine(AppContext.BaseDirectory, "evals", "support.json"));
+var reporter = new EvalReporter(collector);
+await RunEval("gpt-4o", degraded: false);
+await Task.Delay(40);
+await RunEval("gpt-4o", degraded: false);
+await Task.Delay(40);
+await RunEval("gpt-4o-mini", degraded: true);
+
+Console.WriteLine($"Sent traces and eval runs to Seerlens. Open {collector} to see them.");
 
 // Give the background exporter a moment to flush before the process exits.
 await Task.Delay(500);
+
+async Task RunEval(string target, bool degraded)
+{
+    var runner = new EvalRunner(new EvalDemoClient(degraded, target), new KeywordScorer());
+    var run = await runner.Run(golden, target);
+    await reporter.Report(run);
+    Console.WriteLine($"[eval] {target} scored {run.Score:P0}");
+}
 
 static async Task Ask(IChatClient client, string model, string prompt)
 {

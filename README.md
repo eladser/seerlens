@@ -27,6 +27,7 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 - **Cost, tokens, latency** per call and per trace, priced across the common OpenAI, Anthropic, and Google models.
 - **The actual prompt and completion**, not a summary.
 - **Failures, captured.** A call that throws is recorded with its error, so you can see what broke.
+- **Eval trends.** Score a golden set against your prompts and watch the number over time, so a model swap that drops quality shows up as a line heading down, not a surprise in production.
 
 ![Failed call](docs/img/error-trace.png)
 
@@ -88,8 +89,9 @@ your app ──► Seerlens SDK ──► collector ──► SQLite
 | Piece | What it is |
 |-------|-----------|
 | `Seerlens.Sdk` | .NET SDK. An `IChatClient` wrapper plus a small API for grouping traces. |
-| `Seerlens.Collector` | ASP.NET Core app. Ingest endpoint, SQLite store, live feed, and it serves the dashboard. Packaged as the `seerlens` tool. |
-| `dashboard` | React + TypeScript UI. Trace list, timeline, cost and token rollups. |
+| `Seerlens.Evals` | Golden sets, scorers (keyword or LLM-as-judge), and a runner that scores your prompts and reports the run. |
+| `Seerlens.Collector` | ASP.NET Core app. Trace and eval ingest, SQLite store, live feed, and it serves the dashboard. Packaged as the `seerlens` tool. |
+| `dashboard` | React + TypeScript UI. Trace timeline, cost and token rollups, and the eval trend. |
 
 ## Run it from source
 
@@ -116,9 +118,9 @@ Covers the store and pricing, the ingest endpoint, and the SDK's safety contract
 
 ## Status and what's next
 
-Live tracing works for .NET, plus OTLP ingest for everything else. On the list:
+Live tracing for .NET, OTLP ingest for everything else, and eval trends. On the list:
 
-- **Evals.** Run a golden set against your prompts and track answer quality over time, so a model swap that drops quality shows up as a trend, not a surprise in production.
+- **LLM-as-judge by default.** The eval engine already supports a model judge for faithfulness and relevancy; next is wiring it through the dashboard so you can pick the scorer per set.
 - **Python and JavaScript SDKs.** A thin one-line wrapper like the .NET one, for apps that don't already run OpenTelemetry.
 - **Streaming.** Token-by-token responses pass through but aren't yet recorded as their own spans.
 

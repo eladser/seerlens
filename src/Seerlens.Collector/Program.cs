@@ -16,6 +16,7 @@ builder.WebHost.UseUrls(
     Environment.GetEnvironmentVariable("SEERLENS_URL") ?? "http://localhost:5005");
 
 builder.Services.AddSingleton(TraceStore.ForFile(dbPath));
+builder.Services.AddSingleton(EvalStore.ForFile(dbPath));
 builder.Services.AddSingleton<LiveFeed>();
 
 var app = builder.Build();
@@ -53,6 +54,17 @@ app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(limit ?? 
 
 app.MapGet("/api/traces/{id}", (string id, TraceStore store) =>
     store.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
+
+app.MapPost("/eval/runs", (EvalRunIn run, EvalStore evals) =>
+{
+    evals.Add(run);
+    return Results.Accepted();
+});
+
+app.MapGet("/api/evals", (EvalStore evals, string? set) => evals.List(set));
+
+app.MapGet("/api/evals/{id}", (string id, EvalStore evals) =>
+    evals.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
 
 app.MapGet("/api/stats", (TraceStore store) => store.Stats());
 
