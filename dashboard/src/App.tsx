@@ -40,12 +40,18 @@ export default function App() {
 
       <main className="layout">
         <aside className="sidebar">
-          <TraceList
-            traces={traces}
-            selectedId={selectedId}
-            latestId={latestId}
-            onSelect={setSelectedId}
-          />
+          <div className="sidebar-scroll">
+            <TraceList
+              traces={traces}
+              selectedId={selectedId}
+              latestId={latestId}
+              onSelect={setSelectedId}
+            />
+          </div>
+          <footer className="sidebar-footer">
+            <a href="https://github.com/eladser" target="_blank" rel="noreferrer">eladser</a>
+            <a href="https://ko-fi.com/eladser" target="_blank" rel="noreferrer">ko-fi</a>
+          </footer>
         </aside>
         <section className="content">
           {selectedId

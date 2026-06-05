@@ -57,6 +57,11 @@ using (SeerlensTrace.Begin("answer support ticket"))
 
 The SDK ships traces on a background queue. If the collector is down or busy, traces are dropped and your app keeps running. Instrumentation never blocks or throws into your code.
 
+### Other ways to run it
+
+- **No .NET installed?** Grab a self-contained build (`seerlens-win-x64.zip`, `linux-x64`, `osx-arm64`) from the [releases](https://github.com/eladser/seerlens/releases) and run the `seerlens` binary inside.
+- **SDK on NuGet:** `dotnet add package Seerlens.Sdk`.
+
 ## How it works
 
 The collector takes traces over a small JSON contract, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. The trace shape follows the OpenTelemetry GenAI conventions (model, tokens, tool calls, timing), which keeps the door open to ingesting raw OTLP later so any instrumented app shows up with no SDK. The dashboard is a small React app the collector serves itself.
@@ -104,6 +109,16 @@ This is the first cut: live tracing for .NET, shipped as a tool. On the list:
 - **Native OTLP ingest.** Accept raw OpenTelemetry traces so any instrumented app shows up with no SDK at all.
 - **Python and JavaScript SDKs.** The same thin wrapper as the .NET one, posting to the same contract.
 - **Streaming.** Token-by-token responses pass through but aren't yet recorded as their own spans.
+
+## Made by
+
+Elad Sertshuk, a full-stack engineer who builds developer tools.
+
+- GitHub: [@eladser](https://github.com/eladser)
+- LinkedIn: [elad-sertshuk](https://www.linkedin.com/in/elad-sertshuk)
+- Site: [eladser.dev](https://eladser.dev)
+
+If Seerlens saved you some time, you can [buy me a coffee](https://ko-fi.com/eladser).
 
 ## License
 

@@ -81,8 +81,20 @@ body {
 
 /* layout */
 .layout { flex: 1; display: grid; grid-template-columns: 320px 1fr; min-height: 0; }
-.sidebar { background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; }
+.sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.sidebar-scroll { flex: 1; overflow-y: auto; }
 .content { overflow-y: auto; }
+
+.sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 14px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.sidebar-footer a { color: var(--faint); text-decoration: none; }
+.sidebar-footer a:hover { color: var(--teal); }
 
 .empty {
   height: 100%;

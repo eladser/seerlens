@@ -1,3 +1,4 @@
+// Seerlens SDK, by Elad Sertshuk. https://github.com/eladser  ko-fi.com/eladser
 using System.Diagnostics;
 
 namespace Seerlens.Sdk;
