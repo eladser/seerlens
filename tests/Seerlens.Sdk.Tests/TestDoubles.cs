@@ -50,7 +50,8 @@ sealed class FakeStreamingChatClient(string model, long inTokens, long outTokens
         => throw new NotSupportedException();
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
-        IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken ct = default)
+        IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
         yield return new ChatResponseUpdate(ChatRole.Assistant, "Hello ") { ModelId = model };
