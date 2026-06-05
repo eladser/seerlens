@@ -1,0 +1,16 @@
+[project]
+name = "seerlens"
+version = "0.1.1"
+description = "Send your Python app's LLM calls to Seerlens, the local DevTools for AI calls."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Elad Sertshuk" }]
+keywords = ["llm", "ai", "observability", "tracing", "opentelemetry"]
+
+[project.urls]
+Homepage = "https://github.com/eladser/seerlens"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -28,3 +28,7 @@ jobs:
 
       - name: test
         run: dotnet test --configuration Release
+
+      - name: python sdk tests
+        run: python3 -m unittest
+        working-directory: sdk/python
