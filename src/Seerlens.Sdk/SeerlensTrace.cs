@@ -12,7 +12,11 @@ public static class SeerlensTrace
     static ITraceSink? _sink;
     static readonly AsyncLocal<TraceBuilder?> _current = new();
 
-    public static void Configure(string collectorUrl) => _sink = new Exporter(collectorUrl);
+    public static void Configure(string collectorUrl)
+    {
+        var old = Interlocked.Exchange(ref _sink, new Exporter(collectorUrl));
+        (old as IDisposable)?.Dispose();
+    }
 
     internal static void UseSink(ITraceSink sink) => _sink = sink;
 
@@ -69,7 +73,9 @@ public static class SeerlensTrace
     {
         public void Dispose()
         {
-            _current.Value = null;
+            // only clear if we're still the current trace, so a nested scope can't wipe its parent
+            if (_current.Value?.Id == trace.Id)
+                _current.Value = null;
             Ship(trace.Build());
         }
     }

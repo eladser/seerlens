@@ -53,7 +53,7 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
         string.Join("\n", messages.Select(m => $"{m.Role.Value}: {m.Text}"));
 
     static string TextOf(IList<ChatMessage> messages) =>
-        string.Join("\n", messages.Select(m => m.Text));
+        string.Join("\n", messages.Select(m => m.Text ?? ""));
 }
 
 public static class SeerlensChatClientExtensions

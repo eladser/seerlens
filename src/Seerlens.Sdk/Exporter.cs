@@ -11,7 +11,7 @@ interface ITraceSink
 
 // Ships traces to the collector on a background loop. If the queue fills or the
 // collector is down, traces are dropped. The host app is never blocked or thrown into.
-sealed class Exporter : ITraceSink
+sealed class Exporter : ITraceSink, IDisposable
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -19,14 +19,22 @@ sealed class Exporter : ITraceSink
     readonly Uri _endpoint;
     readonly Channel<TracePayload> _queue = Channel.CreateBounded<TracePayload>(
         new BoundedChannelOptions(1024) { FullMode = BoundedChannelFullMode.DropWrite });
+    readonly Task _pump;
 
     public Exporter(string collectorUrl)
     {
         _endpoint = new Uri(new Uri(collectorUrl), "ingest");
-        _ = Task.Run(Pump);
+        _pump = Task.Run(Pump);
     }
 
     public void Ship(TracePayload trace) => _queue.Writer.TryWrite(trace);
+
+    public void Dispose()
+    {
+        _queue.Writer.TryComplete();
+        try { _pump.Wait(TimeSpan.FromSeconds(2)); } catch { } // let in-flight sends finish
+        _http.Dispose();
+    }
 
     async Task Pump()
     {
