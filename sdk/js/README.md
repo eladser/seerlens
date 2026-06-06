@@ -2,6 +2,10 @@
 
 Send your Node app's LLM calls to [Seerlens](https://github.com/eladser/seerlens). Traces go out as OpenTelemetry GenAI spans, so they land in the same dashboard as the .NET and Python ones.
 
+```bash
+npm install seerlens
+```
+
 ```js
 import * as seerlens from 'seerlens'
 

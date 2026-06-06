@@ -2,6 +2,8 @@
 
 [![tool on nuget](https://img.shields.io/nuget/v/Seerlens?label=tool)](https://www.nuget.org/packages/Seerlens)
 [![sdk on nuget](https://img.shields.io/nuget/v/Seerlens.Sdk?label=sdk)](https://www.nuget.org/packages/Seerlens.Sdk)
+[![pypi](https://img.shields.io/pypi/v/seerlens?label=pypi)](https://pypi.org/project/seerlens/)
+[![npm](https://img.shields.io/npm/v/seerlens?label=npm)](https://www.npmjs.com/package/seerlens)
 [![ci](https://github.com/eladser/seerlens/actions/workflows/ci.yml/badge.svg)](https://github.com/eladser/seerlens/actions/workflows/ci.yml)
 
 DevTools for AI calls. One line of setup and a local dashboard shows every LLM call your app makes: the prompt, what it cost, how many tokens, how long it took, and which tools it called. Runs on your machine. No signup.
@@ -72,7 +74,12 @@ The collector has no auth, by design: it binds `localhost` and the Docker exampl
 
 ### From other languages
 
-The collector speaks OTLP, so any OpenTelemetry-instrumented app shows up at `http://localhost:5005/v1/traces` with no Seerlens SDK. There are also small SDKs for [Python](sdk/python) and [JavaScript](sdk/js):
+The collector speaks OTLP, so any OpenTelemetry-instrumented app shows up at `http://localhost:5005/v1/traces` with no Seerlens SDK. There are also small SDKs on [PyPI](https://pypi.org/project/seerlens/) and [npm](https://www.npmjs.com/package/seerlens):
+
+```bash
+pip install seerlens     # Python
+npm install seerlens      # JavaScript / Node
+```
 
 ```python
 import seerlens

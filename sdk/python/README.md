@@ -2,6 +2,10 @@
 
 Send your Python app's LLM calls to [Seerlens](https://github.com/eladser/seerlens). Traces go out as OpenTelemetry GenAI spans, so they land in the same dashboard as the .NET ones.
 
+```bash
+pip install seerlens
+```
+
 ```python
 import seerlens
 
