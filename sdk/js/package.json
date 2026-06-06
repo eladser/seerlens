@@ -1,6 +1,6 @@
 {
   "name": "seerlens",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Send your JS app's LLM calls to Seerlens, the local DevTools for AI calls.",
   "type": "module",
   "main": "index.js",

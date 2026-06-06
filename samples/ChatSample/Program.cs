@@ -35,9 +35,30 @@ catch (TimeoutException)
 using (SeerlensTrace.Begin("answer support ticket"))
 {
     await Ask(client, "gpt-4o", "Where is my order #5521?");
-    using (SeerlensTrace.Tool("lookupOrder(#5521)"))
+    using (var t = SeerlensTrace.Tool("lookupOrder", "{\"id\":\"5521\"}"))
+    {
         await Task.Delay(140);
+        t.Complete("{\"status\":\"shipped\",\"eta\":\"Thursday\"}");
+    }
     await Ask(client, "gpt-4o", "Order found, write the customer reply.");
+}
+
+// A research agent that reaches tools over MCP. Shows the step sequence and each
+// call's arguments and result in the trace view.
+using (SeerlensTrace.Begin("research agent: refund policy"))
+{
+    await Ask(client, "gpt-4o", "Find our refund policy and summarize it.");
+    using (var t = SeerlensTrace.Mcp("search_docs", "{\"query\":\"refund policy\"}"))
+    {
+        await Task.Delay(120);
+        t.Complete("3 matches: refunds.md, terms.md, faq.md");
+    }
+    using (var t = SeerlensTrace.Mcp("read_file", "{\"path\":\"refunds.md\"}"))
+    {
+        await Task.Delay(95);
+        t.Complete("Refunds are accepted within 30 days of purchase.");
+    }
+    await Ask(client, "gpt-4o", "Summarize the refund policy in one sentence.");
 }
 
 // Evals: score a golden set a few times. The last run switches to a cheaper model

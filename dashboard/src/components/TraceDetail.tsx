@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { addCase, getSets, getTrace } from '../api'
+import { addCase, getSets, getTrace, scoreTools } from '../api'
+import { downloadJson } from '../download'
 import { dur, money, tokens } from '../format'
-import type { Span, TraceDetail as Detail } from '../types'
+import type { Span, ToolScoreResult, TraceDetail as Detail } from '../types'
 import { Waterfall } from './Waterfall'
 
 export function TraceDetail({ traceId }: { traceId: string }) {
@@ -36,7 +37,10 @@ export function TraceDetail({ traceId }: { traceId: string }) {
   return (
     <div className="detail">
       <header className="detail-head">
-        <h2>{trace.name}</h2>
+        <div className="detail-title">
+          <h2>{trace.name}</h2>
+          <button className="ghost-btn" onClick={() => downloadJson(`trace-${trace.id}.json`, detail)}>Export JSON</button>
+        </div>
         <div className="detail-stats">
           <Stat label="duration" value={dur(trace.durationMs)} />
           <Stat label="cost" value={money(trace.costUsd)} />
@@ -48,15 +52,18 @@ export function TraceDetail({ traceId }: { traceId: string }) {
       </header>
 
       {toolCalls.length > 0 && (
-        <div className="tool-seq">
-          {toolCalls.map((t, i) => (
-            <span key={t.id} className="tool-step" onClick={() => setSpanId(t.id)}>
-              <span className={'kind kind-' + t.kind}>{t.kind}</span>
-              {t.name}
-              {i < toolCalls.length - 1 && <span className="tool-arrow">→</span>}
-            </span>
-          ))}
-        </div>
+        <>
+          <div className="tool-seq">
+            {toolCalls.map((t, i) => (
+              <span key={t.id} className="tool-step" onClick={() => setSpanId(t.id)}>
+                <span className={'kind kind-' + t.kind}>{t.kind}</span>
+                {t.name}
+                {i < toolCalls.length - 1 && <span className="tool-arrow">→</span>}
+              </span>
+            ))}
+          </div>
+          <ToolScore traceId={trace.id} actual={toolCalls.map(t => t.name)} />
+        </>
       )}
 
       <Waterfall
@@ -99,6 +106,48 @@ function SpanView({ span }: { span: Span }) {
       )}
 
       {span.kind === 'llm' && span.promptText && <PromoteCase prompt={span.promptText} />}
+    </div>
+  )
+}
+
+// Run-level eval on a recorded agent trace: did it call the tools you expected,
+// in order? Prefilled with what actually happened, so you edit to set the bar.
+function ToolScore({ traceId, actual }: { traceId: string; actual: string[] }) {
+  const [open, setOpen] = useState(false)
+  const [expected, setExpected] = useState(actual.join(', '))
+  const [result, setResult] = useState<ToolScoreResult | null>(null)
+
+  async function run() {
+    const tools = expected.split(',').map(t => t.trim()).filter(Boolean)
+    setResult(await scoreTools(traceId, tools).catch(() => null))
+  }
+
+  if (!open) return (
+    <button className="ghost-btn tool-score-btn" onClick={() => setOpen(true)}>Score tool usage</button>
+  )
+
+  return (
+    <div className="tool-score">
+      <div className="tool-score-row">
+        <input
+          className="models-input"
+          value={expected}
+          onChange={e => setExpected(e.target.value)}
+          placeholder="expected tools in order, comma separated"
+          spellCheck={false}
+        />
+        <button className="run-btn" onClick={run}>Score</button>
+        <button className="ghost-btn" onClick={() => setOpen(false)}>Close</button>
+      </div>
+      {result && (
+        <div className="tool-score-result">
+          <span className={'num ' + (result.score >= 0.8 ? 'good' : result.score >= 0.5 ? 'mid' : 'bad')}>
+            {Math.round(result.score * 100)}%
+          </span>
+          <span className="muted">{result.orderOk ? 'right tools, right order' : 'order or tools off'}</span>
+          {result.missing.length > 0 && <span className="muted">missing: {result.missing.join(', ')}</span>}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@
 *DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
 
-**Status (v0.2.0):** Phases 0-3 shipped, plus the eval engine running from the dashboard (keyword + LLM judge) and a multi-provider spend breakdown. SDKs for .NET, Python, and JavaScript on top of OTLP ingest. Phase 4 (the MCP infra agent) stays parked.
+**Status (v1.0.0):** Tracing with .NET, Python, and JavaScript SDKs, all on OTLP. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), model and prompt comparison, cost with a budget and alerts, agent and MCP step trees with recorded-run tool scoring, JSON export, and a webhook for regressions and over-budget spend. What's next is in the [roadmap](roadmap.md): running an agent with tools to score live, and rubric-based judging.
 
 ## Pitch
 

@@ -23,3 +23,6 @@ dist/
 # python
 __pycache__/
 *.pyc
+
+# local runtime settings written by the collector
+seerlens-settings.json

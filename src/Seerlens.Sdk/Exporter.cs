@@ -23,7 +23,8 @@ sealed class Exporter : ITraceSink, IDisposable
 
     public Exporter(string collectorUrl)
     {
-        _endpoint = new Uri(new Uri(collectorUrl), "ingest");
+        // Standard OTLP ingest, same path the Python and JS SDKs post to.
+        _endpoint = new Uri(new Uri(collectorUrl), "v1/traces");
         _pump = Task.Run(Pump);
     }
 
@@ -42,7 +43,7 @@ sealed class Exporter : ITraceSink, IDisposable
         {
             try
             {
-                using var resp = await _http.PostAsJsonAsync(_endpoint, trace, Json);
+                using var resp = await _http.PostAsJsonAsync(_endpoint, OtlpExport.Build(trace), Json);
             }
             catch
             {

@@ -9,7 +9,7 @@ namespace Seerlens.Collector;
 // SEERLENS_AI_BASE_URL / SEERLENS_AI_KEY / SEERLENS_AI_MODEL.
 public sealed class AiProvider
 {
-    readonly OpenAIClient? _openai;
+    readonly Func<string, IChatClient?> _clientFor;
 
     public IChatClient? Client { get; }
     public string Model { get; }
@@ -22,19 +22,30 @@ public sealed class AiProvider
         Model = config["SEERLENS_AI_MODEL"] ?? "gpt-4o-mini";
 
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(key))
+        {
+            _clientFor = _ => null;
             return;
+        }
 
         Endpoint = Uri.TryCreate(baseUrl, UriKind.Absolute, out var u) ? u.Host : baseUrl;
 
-        _openai = new OpenAIClient(new ApiKeyCredential(key),
+        var openai = new OpenAIClient(new ApiKeyCredential(key),
             new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });
-        Client = _openai.GetChatClient(Model).AsIChatClient();
+        _clientFor = m => openai.GetChatClient(m).AsIChatClient();
+        Client = _clientFor(Model);
+    }
+
+    // Test seam: a provider backed by a single fake client for every model.
+    internal AiProvider(IChatClient client, string model)
+    {
+        Client = client;
+        Model = model;
+        _clientFor = _ => client;
     }
 
     public bool Configured => Client is not null;
 
     // A client for a specific model on the same provider. Used by model comparison,
     // where one base URL/key serves several models.
-    public IChatClient? ClientFor(string model) =>
-        _openai?.GetChatClient(model).AsIChatClient();
+    public IChatClient? ClientFor(string model) => _clientFor(model);
 }

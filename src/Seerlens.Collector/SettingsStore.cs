@@ -6,8 +6,11 @@ namespace Seerlens.Collector;
 // to the db so it survives restarts. Both fields optional: set what you care about.
 public record Budget(double? MonthlyUsd = null, double? AlertPerCallUsd = null);
 
-// Tiny JSON-file settings store. Only holds the budget today, but it's the place
-// other dashboard-controlled settings would go.
+// Where to send a heads-up when an eval regresses or spend crosses the budget.
+// A Slack incoming webhook works directly; the payload includes a "text" field.
+public record Alerts(string? WebhookUrl = null, double RegressionDrop = 0.05);
+
+// Tiny JSON-file settings store for the things you control from the dashboard.
 public sealed class SettingsStore
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -17,23 +20,23 @@ public sealed class SettingsStore
 
     public SettingsStore(string path) => _path = path;
 
-    public Budget GetBudget()
+    public Budget GetBudget() { lock (_gate) return Read().Budget ?? new Budget(); }
+    public Alerts GetAlerts() { lock (_gate) return Read().Alerts ?? new Alerts(); }
+
+    // Read-modify-write under one lock so saving budget can't clobber alerts.
+    public void SetBudget(Budget budget) { lock (_gate) Write(Read() with { Budget = budget }); }
+    public void SetAlerts(Alerts alerts) { lock (_gate) Write(Read() with { Alerts = alerts }); }
+
+    Settings Read()
     {
-        lock (_gate)
-        {
-            if (!File.Exists(_path)) return new Budget();
-            try { return JsonSerializer.Deserialize<Settings>(File.ReadAllText(_path), Json)?.Budget ?? new Budget(); }
-            catch { return new Budget(); }
-        }
+        if (!File.Exists(_path)) return Empty;
+        try { return JsonSerializer.Deserialize<Settings>(File.ReadAllText(_path), Json) ?? Empty; }
+        catch { return Empty; }
     }
 
-    public void SetBudget(Budget budget)
-    {
-        lock (_gate)
-        {
-            File.WriteAllText(_path, JsonSerializer.Serialize(new Settings(budget), Json));
-        }
-    }
+    void Write(Settings settings) => File.WriteAllText(_path, JsonSerializer.Serialize(settings, Json));
 
-    record Settings(Budget Budget);
+    static Settings Empty => new(new Budget(), new Alerts());
+
+    record Settings(Budget? Budget, Alerts? Alerts);
 }

@@ -31,6 +31,17 @@ public class GoldenSetsTests : IDisposable
     }
 
     [Fact]
+    public void A_sneaky_name_cannot_escape_the_evals_dir()
+    {
+        var sets = new GoldenSets(_dir);
+        sets.Save(new GoldenSet("../../evil", [new GoldenCase("c1", "q")]));
+
+        // nothing got written outside the dir
+        Assert.False(File.Exists(Path.Combine(_dir, "..", "..", "evil.json")));
+        Assert.True(Directory.GetFiles(_dir, "*.json").Length == 1);
+    }
+
+    [Fact]
     public void Delete_removes_the_file()
     {
         var sets = new GoldenSets(_dir);

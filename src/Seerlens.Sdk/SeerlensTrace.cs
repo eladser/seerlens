@@ -29,21 +29,16 @@ public static class SeerlensTrace
         return new TraceScope(trace);
     }
 
-    // Time a tool/function call inside the current trace.
-    public static IDisposable Tool(string name)
+    // Time a tool or MCP call inside the current trace. Pass kind "mcp" for a
+    // Model Context Protocol call. Capture what went in and out with Complete/Fail
+    // so the dashboard shows the arguments and the result.
+    public static ToolSpan Tool(string name, string? arguments = null, string kind = "tool")
     {
         var trace = _current.Value;
-        if (trace is null) return NoopScope.Instance;
-
-        var startedAt = TraceBuilder.Now();
-        var ts = Stopwatch.GetTimestamp();
-        return new ActionScope(error =>
-        {
-            var ms = Stopwatch.GetElapsedTime(ts).TotalMilliseconds;
-            trace.Add(new SpanPayload(Guid.NewGuid().ToString("N"), null, name, "tool",
-                startedAt, ms, null, null, null, null, null, error));
-        });
+        return new ToolSpan(trace, name, kind, arguments);
     }
+
+    public static ToolSpan Mcp(string name, string? arguments = null) => Tool(name, arguments, "mcp");
 
     internal static TraceBuilder? Current => _current.Value;
 
@@ -81,14 +76,39 @@ public static class SeerlensTrace
         }
     }
 
-    sealed class ActionScope(Action<string?> onDispose) : IDisposable
+    /// <summary>
+    /// A tool or MCP call in progress. Set the outcome with <see cref="Complete"/>
+    /// or <see cref="Fail"/>; the span is recorded when it's disposed. If there's no
+    /// active trace it's a no-op.
+    /// </summary>
+    public sealed class ToolSpan : IDisposable
     {
-        public void Dispose() => onDispose(null);
-    }
+        readonly TraceBuilder? _trace;
+        readonly string _name;
+        readonly string _kind;
+        readonly string? _arguments;
+        readonly long _startedAt = TraceBuilder.Now();
+        readonly long _ts = Stopwatch.GetTimestamp();
+        string? _result;
+        string? _error;
 
-    sealed class NoopScope : IDisposable
-    {
-        public static readonly NoopScope Instance = new();
-        public void Dispose() { }
+        internal ToolSpan(TraceBuilder? trace, string name, string kind, string? arguments)
+        {
+            _trace = trace;
+            _name = name;
+            _kind = kind;
+            _arguments = arguments;
+        }
+
+        public ToolSpan Complete(string result) { _result = result; return this; }
+        public ToolSpan Fail(string error) { _error = error; return this; }
+
+        public void Dispose()
+        {
+            if (_trace is null) return;
+            var ms = Stopwatch.GetElapsedTime(_ts).TotalMilliseconds;
+            _trace.Add(new SpanPayload(Guid.NewGuid().ToString("N"), null, _name, _kind,
+                _startedAt, ms, null, null, null, _arguments, _result, _error));
+        }
     }
 }

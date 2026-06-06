@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getEvalRun, getEvals, getSets, runEval, type SetsInfo } from '../api'
+import { downloadJson } from '../download'
 import { ago } from '../format'
 import type { EvalRun, EvalRunDetail } from '../types'
 import { SetEditor } from './SetEditor'
@@ -119,6 +120,11 @@ export function EvalsView() {
               <span className={'num ' + (delta < 0 ? 'bad' : 'good')}>
                 {delta >= 0 ? '+' : ''}{pct(delta)} over time
               </span>
+            )}
+            {detail && (
+              <button className="ghost-btn export" onClick={() => downloadJson(`eval-${detail.run.id}.json`, detail)}>
+                Export run
+              </button>
             )}
           </div>
 

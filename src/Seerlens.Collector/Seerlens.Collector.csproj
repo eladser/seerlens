@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>seerlens</ToolCommandName>
     <PackageId>Seerlens</PackageId>
-    <Version>0.2.0</Version>
+    <Version>1.0.0</Version>
     <Authors>Elad Sertshuk</Authors>
     <Description>Local-first DevTools for AI calls. See every LLM call your app makes: prompt, cost, tokens, latency, tool calls.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>

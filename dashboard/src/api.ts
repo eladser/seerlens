@@ -1,6 +1,6 @@
 import type {
-  Budget, CompareResult, Config, CostReport, EvalRun, EvalRunDetail, GoldenCase, GoldenSet,
-  Stats, TraceDetail, TraceSummary,
+  Alerts, Budget, CompareResult, Config, CostReport, EvalRun, EvalRunDetail, GoldenCase, GoldenSet,
+  Stats, ToolScoreResult, TraceDetail, TraceSummary,
 } from './types'
 
 export async function getTraces(limit = 200): Promise<TraceSummary[]> {
@@ -13,6 +13,11 @@ export async function getTrace(id: string): Promise<TraceDetail> {
   const r = await fetch(`/api/traces/${id}`)
   if (!r.ok) throw new Error(`trace ${id}: ${r.status}`)
   return r.json()
+}
+
+export async function clearTraces(): Promise<void> {
+  const r = await fetch('/api/traces', { method: 'DELETE' })
+  if (!r.ok && r.status !== 204) throw new Error(`clear: ${r.status}`)
 }
 
 export async function getStats(): Promise<Stats> {
@@ -55,6 +60,26 @@ export async function runEval(set: string, scorer: string): Promise<EvalRun> {
 export async function getConfig(): Promise<Config> {
   const r = await fetch('/api/config')
   if (!r.ok) throw new Error(`config: ${r.status}`)
+  return r.json()
+}
+
+export async function setAlerts(alerts: Alerts): Promise<Alerts> {
+  const r = await fetch('/api/alerts', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(alerts),
+  })
+  if (!r.ok) throw new Error(`alerts: ${r.status}`)
+  return r.json()
+}
+
+export async function scoreTools(traceId: string, expected: string[]): Promise<ToolScoreResult> {
+  const r = await fetch('/eval/tools', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ traceId, expected }),
+  })
+  if (!r.ok) throw new Error(`tool score: ${r.status}`)
   return r.json()
 }
 

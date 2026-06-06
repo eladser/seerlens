@@ -50,10 +50,12 @@ static class EvalCommand
         }
 
         IScorer scorer = opt.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
-        Console.WriteLine($"Running '{set.Name}' ({set.Cases.Count} cases) through {ai.Model}, scoring by {scorer.Name}...\n");
+        if (!opt.Quiet)
+            Console.WriteLine($"Running '{set.Name}' ({set.Cases.Count} cases) through {ai.Model}, scoring by {scorer.Name}...\n");
 
         var run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
-        PrintTable(run);
+        if (!opt.Quiet)
+            PrintTable(run);
 
         if (opt.ReportTo is { } url)
             await TryReport(url, run);
@@ -211,6 +213,7 @@ static class EvalCommand
           --json <path>         write the full run as JSON
           --junit <path>        write JUnit XML for CI test reporters
           --report <url>        also send the run to a running dashboard's trend
+          --quiet               print only the verdict, not the per-case table
 
         Provider comes from SEERLENS_AI_BASE_URL / SEERLENS_AI_KEY / SEERLENS_AI_MODEL.
 
@@ -231,6 +234,7 @@ static class EvalCommand
         public string? JsonOut;
         public string? JUnitOut;
         public string? ReportTo;
+        public bool Quiet;
         public string? Error;
 
         public static Options Parse(string[] args)
@@ -249,6 +253,7 @@ static class EvalCommand
                     case "--json": o.JsonOut = Next(args, ref i); break;
                     case "--junit": o.JUnitOut = Next(args, ref i); break;
                     case "--report": o.ReportTo = Next(args, ref i); break;
+                    case "--quiet": o.Quiet = true; break;
                     default: o.Error = $"unknown option '{args[i]}'"; break;
                 }
                 if (o.Error is not null) break;

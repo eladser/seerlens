@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Seerlens.Evals;
 
@@ -11,7 +12,7 @@ public sealed class GoldenSets
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     readonly string _dir;
-    readonly Dictionary<string, GoldenSet> _sets = new(StringComparer.OrdinalIgnoreCase);
+    readonly ConcurrentDictionary<string, GoldenSet> _sets = new(StringComparer.OrdinalIgnoreCase);
 
     public GoldenSets() : this(Path.Combine(AppContext.BaseDirectory, "evals")) { }
 
@@ -40,7 +41,7 @@ public sealed class GoldenSets
         }
     }
 
-    public IReadOnlyCollection<string> Names => _sets.Keys;
+    public IReadOnlyCollection<string> Names => _sets.Keys.ToArray();
 
     public string Dir => _dir;
 
@@ -55,15 +56,20 @@ public sealed class GoldenSets
 
     public bool Delete(string name)
     {
-        if (!_sets.Remove(name)) return false;
+        if (!_sets.TryRemove(name, out _)) return false;
         var path = PathFor(name);
         if (File.Exists(path)) File.Delete(path);
         return true;
     }
 
+    // Keep the set name from escaping the evals dir: drop any path parts, scrub
+    // invalid chars, and never let it resolve to "." or "..".
     string PathFor(string name)
     {
-        var safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        var bare = Path.GetFileName(name);
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = string.Concat(bare.Select(c => invalid.Contains(c) ? '_' : c)).Trim('.', ' ');
+        if (safe.Length == 0) safe = "set";
         return Path.Combine(_dir, $"{safe}.json");
     }
 }
