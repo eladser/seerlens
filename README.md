@@ -12,7 +12,7 @@ Think of it as the browser Network tab, pointed at your AI calls.
 
 Built .NET-first. It adds the two things the .NET AI stack doesn't give you, answer-quality evals and cost in dollars, and because it speaks OpenTelemetry, calls from Python, JavaScript or any other language land in the same dashboard.
 
-![The Seerlens dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/cost-breakdown.png)
+![Seerlens demo](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/demo.gif)
 
 ## The problem
 
