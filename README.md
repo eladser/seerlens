@@ -236,6 +236,13 @@ What's next, with the full plan in the [roadmap](docs/roadmap.md):
 - **Judging you can trust.** Rubric-based scoring and more scorer types (JSON-schema, regex, embedding similarity), so the number you gate a build on holds up.
 - **Deeper in .NET.** A DI / ASP.NET setup extension and a Semantic Kernel filter that traces agents with no extra code.
 
+## Docs
+
+- [Reference](docs/reference.md): every environment variable, the `seerlens eval` flags, and the HTTP API.
+- [Roadmap](docs/roadmap.md): what shipped in 1.0 and what's next.
+- [Design notes](docs/design.md): why it's built the way it is.
+- [Changelog](CHANGELOG.md).
+
 ## Made by
 
 Elad Sertshuk, a full-stack engineer who builds developer tools.

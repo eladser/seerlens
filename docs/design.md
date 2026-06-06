@@ -68,7 +68,7 @@ your app → SDK emits gen_ai span (OTLP) → Collector ingests → Store
 Eval path:
 ```
 Dashboard "run eval" → Eval engine runs golden set through a provider
-       → scores each answer (faithfulness, relevancy, citation accuracy)
+       → scores each answer (keyword match, or an LLM judge against a rubric)
        → stores run → Dashboard plots score-over-time per prompt/model
 ```
 
@@ -77,7 +77,7 @@ The eval engine owns the provider calls itself, so eval is language-agnostic, it
 ## The two demos that sell it
 
 1. **Live trace.** Split screen: a chat app answering on the left, Seerlens on the right lighting up with `820ms · $0.004 · 1,240 tokens · 3 tool calls`, expanding into a nested waterfall. Click a row, read the exact prompt and response.
-2. **Regression catch.** "Switched GPT-4o → 4o-mini to save money; faithfulness dropped 0.91 → 0.78 on my golden set," shown as a trend line. The screenshot that says "I've run this in production."
+2. **Regression catch.** "Switched GPT-4o → a cheaper model to save money; my golden-set score dropped from 100% to 39%," shown as a trend line. The screenshot that says "I've run this in production."
 
 ## Scope and phases
 
@@ -91,7 +91,7 @@ De-risked so each phase is shippable on its own.
 
 ## Out of scope for v1 (YAGNI)
 
-Multi-tenant auth, hosted/cloud version, team collaboration, alerting, sampling config, ClickHouse/columnar store, RBAC. These are platform concerns; Seerlens is a local dev tool. The README notes a possible hosted version as "what's next."
+Multi-tenant auth, hosted/cloud version, team collaboration, sampling config, ClickHouse/columnar store, RBAC. These are platform concerns; Seerlens is a local dev tool. (Webhook alerts shipped in 1.0; a hosted version stays a roadmap maybe.)
 
 ## Senior-signal artifacts (bake in from day one)
 
