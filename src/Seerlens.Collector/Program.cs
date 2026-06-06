@@ -5,6 +5,11 @@ using Seerlens.Evals;
 
 LoadDotEnv(); // pick up SEERLENS_AI_* from .env.local for local dev
 
+// `seerlens eval <set>` runs a golden set and exits, no server. Everything else
+// boots the collector + dashboard.
+if (args is ["eval", .. var rest])
+    return await EvalCommand.Run(rest);
+
 // Anchor the content root to the binary, not the caller's working directory,
 // so the bundled dashboard is found wherever the tool is launched from.
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -21,7 +26,10 @@ builder.WebHost.UseUrls(
 builder.Services.AddSingleton(TraceStore.ForFile(dbPath));
 builder.Services.AddSingleton(EvalStore.ForFile(dbPath));
 builder.Services.AddSingleton(new AiProvider(builder.Configuration));
-builder.Services.AddSingleton(new GoldenSets());
+builder.Services.AddSingleton(new SettingsStore(
+    builder.Configuration["SEERLENS_SETTINGS"] ?? "seerlens-settings.json"));
+builder.Services.AddSingleton(new GoldenSets(
+    builder.Configuration["SEERLENS_EVALS_DIR"] ?? Path.Combine(AppContext.BaseDirectory, "evals")));
 builder.Services.AddSingleton<LiveFeed>();
 
 var app = builder.Build();
@@ -74,6 +82,35 @@ app.MapGet("/api/evals/{id}", (string id, EvalStore evals) =>
 app.MapGet("/api/sets", (GoldenSets sets, AiProvider ai) =>
     new { sets = sets.Names, aiConfigured = ai.Configured, model = ai.Model });
 
+// Full set content, for editing in the dashboard.
+app.MapGet("/api/sets/{name}", (string name, GoldenSets sets) =>
+    sets.Get(name) is { } set ? Results.Ok(set) : Results.NotFound());
+
+// Create or replace a set. The body is a golden set ({ name, cases }).
+app.MapPut("/api/sets/{name}", (string name, Seerlens.Evals.GoldenSet body, GoldenSets sets) =>
+{
+    if (body.Cases is null)
+        return Results.BadRequest(new { error = "a set needs a cases array" });
+    var set = body with { Name = name };
+    sets.Save(set);
+    return Results.Ok(set);
+});
+
+app.MapDelete("/api/sets/{name}", (string name, GoldenSets sets) =>
+    sets.Delete(name) ? Results.NoContent() : Results.NotFound());
+
+// Append one case to a set, used by "add this trace to an eval set".
+app.MapPost("/api/sets/{name}/cases", (string name, Seerlens.Evals.GoldenCase body, GoldenSets sets) =>
+{
+    var existing = sets.Get(name);
+    var cases = existing?.Cases.ToList() ?? [];
+    var id = string.IsNullOrWhiteSpace(body.Id) ? $"case-{cases.Count + 1}" : body.Id;
+    cases.Add(body with { Id = id });
+    var set = new Seerlens.Evals.GoldenSet(name, cases);
+    sets.Save(set);
+    return Results.Ok(set);
+});
+
 // Run a golden set through the configured provider and score it. The target
 // produces the answers; the scorer is keyword (offline) or an LLM judge.
 app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, EvalStore evals) =>
@@ -88,7 +125,53 @@ app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, 
     return Results.Ok(evals.Add(ToEvalRunIn(run)));
 });
 
+// Run a set across several models (and an optional system prompt) and return
+// quality, cost and latency per model, so "should I switch?" has an answer.
+app.MapPost("/eval/compare", async (CompareRequest req, GoldenSets sets, AiProvider ai) =>
+{
+    if (!ai.Configured)
+        return Results.BadRequest(new { error = "no provider configured; set SEERLENS_AI_BASE_URL/KEY/MODEL" });
+    if (sets.Get(req.Set) is not { } set)
+        return Results.NotFound(new { error = $"unknown set: {req.Set}" });
+
+    var models = req.Models is { Count: > 0 } ? req.Models : [ai.Model];
+    var result = await new Comparison(ai).Run(set, models, req.Scorer ?? "keyword", req.PromptPrefix);
+    return Results.Ok(result);
+});
+
 app.MapGet("/api/stats", (TraceStore store) => store.Stats());
+
+// Cost view: spend rollups plus the budget and whether it's been crossed.
+app.MapGet("/api/cost", (TraceStore store, SettingsStore settings) =>
+{
+    var now = DateTimeOffset.UtcNow;
+    var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+    var since = now.AddDays(-14).ToUnixTimeMilliseconds();
+
+    var spend = store.SpendReport(monthStart, since);
+    var budget = settings.GetBudget();
+    var frac = budget.MonthlyUsd is { } m and > 0 ? spend.MonthToDateUsd / m : (double?)null;
+    var over = frac >= 1.0;
+    return new CostReport(spend, budget, over, frac);
+});
+
+app.MapPut("/api/budget", (Budget budget, SettingsStore settings) =>
+{
+    settings.SetBudget(budget);
+    return Results.Ok(budget);
+});
+
+// A read-only look at how the collector is configured, for the Settings page.
+app.MapGet("/api/config", (AiProvider ai, GoldenSets sets, SettingsStore settings) => new
+{
+    providerConfigured = ai.Configured,
+    model = ai.Model,
+    endpoint = ai.Endpoint,
+    evalsDir = sets.Dir,
+    setCount = sets.Names.Count,
+    pricingOverride = Pricing.HasOverride,
+    budget = settings.GetBudget(),
+});
 
 app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken ct) =>
 {
@@ -120,6 +203,7 @@ if (hasUi)
     });
 
 app.Run();
+return 0;
 
 static void LoadDotEnv()
 {
@@ -143,5 +227,6 @@ static EvalRunIn ToEvalRunIn(Seerlens.Evals.EvalRun r) =>
         r.Cases.Select(c => new EvalCaseIn(c.Input, c.Answer, c.Score)).ToList());
 
 record RunRequest(string Set, string Scorer);
+record CompareRequest(string Set, List<string>? Models, string? Scorer, string? PromptPrefix);
 
 public partial class Program { }

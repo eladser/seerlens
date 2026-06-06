@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getTrace } from '../api'
+import { addCase, getSets, getTrace } from '../api'
 import { dur, money, tokens } from '../format'
 import type { Span, TraceDetail as Detail } from '../types'
 import { Waterfall } from './Waterfall'
@@ -31,6 +31,7 @@ export function TraceDetail({ traceId }: { traceId: string }) {
 
   const { trace, spans } = detail
   const span = spans.find(s => s.id === spanId) ?? null
+  const toolCalls = spans.filter(s => s.kind === 'tool' || s.kind === 'mcp')
 
   return (
     <div className="detail">
@@ -40,10 +41,23 @@ export function TraceDetail({ traceId }: { traceId: string }) {
           <Stat label="duration" value={dur(trace.durationMs)} />
           <Stat label="cost" value={money(trace.costUsd)} />
           <Stat label="tokens" value={tokens(trace.promptTokens, trace.completionTokens)} />
+          {toolCalls.length > 0 && <Stat label="tool calls" value={String(toolCalls.length)} />}
           {trace.model && <Stat label="model" value={trace.model} />}
           <Stat label="status" value={trace.status} bad={trace.status !== 'ok'} />
         </div>
       </header>
+
+      {toolCalls.length > 0 && (
+        <div className="tool-seq">
+          {toolCalls.map((t, i) => (
+            <span key={t.id} className="tool-step" onClick={() => setSpanId(t.id)}>
+              <span className={'kind kind-' + t.kind}>{t.kind}</span>
+              {t.name}
+              {i < toolCalls.length - 1 && <span className="tool-arrow">→</span>}
+            </span>
+          ))}
+        </div>
+      )}
 
       <Waterfall
         spans={spans}
@@ -59,6 +73,7 @@ export function TraceDetail({ traceId }: { traceId: string }) {
 }
 
 function SpanView({ span }: { span: Span }) {
+  const isTool = span.kind === 'tool' || span.kind === 'mcp'
   return (
     <div className="span-view">
       <div className="span-meta muted">
@@ -72,16 +87,71 @@ function SpanView({ span }: { span: Span }) {
 
       {span.promptText && (
         <section>
-          <h4>Prompt</h4>
+          <h4>{isTool ? 'Arguments' : 'Prompt'}</h4>
           <pre>{span.promptText}</pre>
         </section>
       )}
       {span.completionText && (
         <section>
-          <h4>Completion</h4>
+          <h4>{isTool ? 'Result' : 'Completion'}</h4>
           <pre>{span.completionText}</pre>
         </section>
       )}
+
+      {span.kind === 'llm' && span.promptText && <PromoteCase prompt={span.promptText} />}
+    </div>
+  )
+}
+
+// Turn a real prompt you just looked at into a golden-set case. Closes the loop
+// from "saw a bad answer" to "covered by a test".
+function PromoteCase({ prompt }: { prompt: string }) {
+  const [open, setOpen] = useState(false)
+  const [sets, setSets] = useState<string[]>([])
+  const [set, setSet] = useState('')
+  const [keywords, setKeywords] = useState('')
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    getSets().then(i => {
+      setSets(i.sets)
+      setSet(s => s || i.sets[0] || '')
+    }).catch(() => {})
+  }, [open])
+
+  async function add() {
+    if (!set) return
+    await addCase(set, {
+      id: '',
+      input: prompt,
+      keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
+      criteria: null,
+    }).catch(() => {})
+    setDone(true)
+  }
+
+  if (!open) return (
+    <button className="ghost-btn promote" onClick={() => setOpen(true)}>Save as eval case</button>
+  )
+
+  if (done) return <p className="muted promote">Added to <b>{set}</b>.</p>
+
+  return (
+    <div className="promote-form">
+      <select value={set} onChange={e => setSet(e.target.value)}>
+        {sets.length === 0 && <option value="">no sets yet</option>}
+        {sets.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <input
+        className="models-input"
+        value={keywords}
+        onChange={e => setKeywords(e.target.value)}
+        placeholder="keywords a good answer needs (optional)"
+        spellCheck={false}
+      />
+      <button className="run-btn" onClick={add} disabled={!set}>Add</button>
+      <button className="ghost-btn" onClick={() => setOpen(false)}>Cancel</button>
     </div>
   )
 }

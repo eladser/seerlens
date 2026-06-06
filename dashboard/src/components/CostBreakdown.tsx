@@ -11,14 +11,15 @@ export function CostBreakdown({ traces }: { traces: TraceSummary[] }) {
     return <div className="empty">Send some traces and the spend breakdown shows up here.</div>
   }
 
-  const avg = traces.reduce((s, t) => s + t.durationMs, 0) / traces.length
+  const lat = percentiles(traces.map(t => t.durationMs))
 
   return (
     <div className="spend">
       <div className="spend-head">
         <Stat label="spent" value={money(total)} />
         <Stat label="calls" value={String(traces.length)} />
-        <Stat label="avg latency" value={dur(avg)} />
+        <Stat label="p50 latency" value={dur(lat.p50)} />
+        <Stat label="p95 latency" value={dur(lat.p95)} />
       </div>
 
       <Section title="By provider" rows={byProvider} max={maxCost(byProvider)} />
@@ -82,3 +83,10 @@ function add(m: Map<string, Row>, name: string, cost: number, tokens: number) {
 
 const maxCost = (rows: Row[]) => rows.reduce((m, r) => Math.max(m, r.cost), 0)
 const tokenLabel = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k tok` : `${n} tok`)
+
+function percentiles(values: number[]) {
+  if (values.length === 0) return { p50: 0, p95: 0 }
+  const sorted = [...values].sort((a, b) => a - b)
+  const at = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
+  return { p50: at(0.5), p95: at(0.95) }
+}

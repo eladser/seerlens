@@ -72,19 +72,30 @@ public static class Otlp
 
         var startMs = Nanos(span.StartTimeUnixNano);
         var endMs = Nanos(span.EndTimeUnixNano);
+        var kind = Kind(attr, model);
+
+        // For tool and MCP spans the interesting text is the call arguments and the
+        // result, so map those into the prompt/completion slots the UI already shows.
+        var toolName = Str(attr, "gen_ai.tool.name") ?? Str(attr, "mcp.tool.name") ?? Str(attr, "mcp.method.name");
+        var prompt = kind is "tool" or "mcp"
+            ? Str(attr, "gen_ai.tool.call.arguments") ?? Str(attr, "mcp.request.params")
+            : Str(attr, "gen_ai.prompt");
+        var completion = kind is "tool" or "mcp"
+            ? Str(attr, "gen_ai.tool.message") ?? Str(attr, "mcp.response.result")
+            : Str(attr, "gen_ai.completion");
 
         var s = new IngestSpan(
             span.SpanId ?? Guid.NewGuid().ToString("N"),
             string.IsNullOrEmpty(span.ParentSpanId) ? null : span.ParentSpanId,
-            span.Name ?? "span",
-            Kind(attr, model),
+            toolName ?? span.Name ?? "span",
+            kind,
             startMs,
             Math.Max(0, endMs - startMs),
             model,
             inTokens,
             outTokens,
-            Str(attr, "gen_ai.prompt"),
-            Str(attr, "gen_ai.completion"),
+            prompt,
+            completion,
             span.Status?.Code == 2 ? span.Status.Message ?? "error" : null);
 
         return new Mapped(s, Str(attr, "gen_ai.system"));
@@ -92,6 +103,11 @@ public static class Otlp
 
     static string Kind(Dictionary<string, OtlpValue?> attr, string? model)
     {
+        // MCP tool calls get their own kind so the agent view can call them out.
+        if (attr.Keys.Any(k => k.StartsWith("mcp.", StringComparison.Ordinal))
+            || Str(attr, "rpc.system") == "mcp"
+            || Str(attr, "gen_ai.tool.type") == "mcp")
+            return "mcp";
         if (Str(attr, "gen_ai.operation.name") == "execute_tool" || attr.ContainsKey("gen_ai.tool.name"))
             return "tool";
         if (model is not null || attr.Keys.Any(k => k.StartsWith("gen_ai.", StringComparison.Ordinal)))

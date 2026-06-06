@@ -1,19 +1,32 @@
+using System.Text.Json;
 using Seerlens.Evals;
 
 namespace Seerlens.Collector;
 
-// Loads the golden sets shipped next to the binary (./evals/*.json). Drop a JSON
-// file in there and it shows up as a set you can run from the dashboard.
+// Holds the golden sets in ./evals next to the binary. Loaded at startup, and now
+// writable too: the dashboard can create, edit and delete sets so you don't have
+// to hand-edit JSON.
 public sealed class GoldenSets
 {
+    static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
+    readonly string _dir;
     readonly Dictionary<string, GoldenSet> _sets = new(StringComparer.OrdinalIgnoreCase);
 
-    public GoldenSets()
-    {
-        var dir = Path.Combine(AppContext.BaseDirectory, "evals");
-        if (!Directory.Exists(dir)) return;
+    public GoldenSets() : this(Path.Combine(AppContext.BaseDirectory, "evals")) { }
 
-        foreach (var file in Directory.GetFiles(dir, "*.json"))
+    public GoldenSets(string dir)
+    {
+        _dir = dir;
+        Reload();
+    }
+
+    public void Reload()
+    {
+        _sets.Clear();
+        if (!Directory.Exists(_dir)) return;
+
+        foreach (var file in Directory.GetFiles(_dir, "*.json"))
         {
             try
             {
@@ -29,5 +42,28 @@ public sealed class GoldenSets
 
     public IReadOnlyCollection<string> Names => _sets.Keys;
 
+    public string Dir => _dir;
+
     public GoldenSet? Get(string name) => _sets.GetValueOrDefault(name);
+
+    public void Save(GoldenSet set)
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(PathFor(set.Name), JsonSerializer.Serialize(set, Json));
+        _sets[set.Name] = set;
+    }
+
+    public bool Delete(string name)
+    {
+        if (!_sets.Remove(name)) return false;
+        var path = PathFor(name);
+        if (File.Exists(path)) File.Delete(path);
+        return true;
+    }
+
+    string PathFor(string name)
+    {
+        var safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        return Path.Combine(_dir, $"{safe}.json");
+    }
 }

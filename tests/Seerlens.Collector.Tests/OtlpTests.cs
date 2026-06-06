@@ -73,6 +73,30 @@ public class OtlpTests
     }
 
     [Fact]
+    public void Maps_an_mcp_tool_call_with_its_name_and_io()
+    {
+        const string payload = """
+        {"resourceSpans":[{"scopeSpans":[{"spans":[
+          {"traceId":"t","spanId":"s","parentSpanId":"","name":"tools/call",
+           "startTimeUnixNano":"1700000000000000000","endTimeUnixNano":"1700000000100000000",
+           "attributes":[
+             {"key":"mcp.tool.name","value":{"stringValue":"search_docs"}},
+             {"key":"mcp.request.params","value":{"stringValue":"{\"q\":\"refunds\"}"}},
+             {"key":"mcp.response.result","value":{"stringValue":"3 hits"}}
+           ],"status":{"code":1}}
+        ]}]}]}
+        """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(payload, Web)!;
+
+        var trace = Assert.Single(Otlp.ToTraces(req));
+        var span = Assert.Single(trace.Spans);
+        Assert.Equal("mcp", span.Kind);
+        Assert.Equal("search_docs", span.Name);
+        Assert.Equal("{\"q\":\"refunds\"}", span.PromptText);
+        Assert.Equal("3 hits", span.CompletionText);
+    }
+
+    [Fact]
     public void Duplicate_attribute_keys_do_not_crash_and_last_wins()
     {
         const string payload = """

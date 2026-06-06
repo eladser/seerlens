@@ -134,6 +134,18 @@ Then pick the set in the **Evals** tab and hit Run. Both scorers send each quest
 
 ![Run an eval from the dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-run.png)
 
+### In CI
+
+The same scoring runs from the command line, so you can gate a build on it:
+
+```bash
+seerlens eval support --min 0.8
+# or catch a regression against a saved baseline
+seerlens eval support --baseline .seerlens/support.base --junit results.xml
+```
+
+It exits non-zero when the mean score is below `--min`, or when it dropped too far below the baseline, which is what turns the eval engine into an actual guardrail. See [docs/ci-eval-gate.yml](docs/ci-eval-gate.yml) for a GitHub Actions example.
+
 ## A look around
 
 Spend by provider and model, so you can see where the money goes:
@@ -200,15 +212,19 @@ What this doesn't do, since the tradeoffs were deliberate:
 - **LLM-judge scoring costs money and isn't perfectly repeatable.** The judge is itself a model call, so it adds latency and spend, and two runs can disagree at the margin. The keyword scorer is deterministic but blunt. Pick the one that fits what you're checking.
 - **The .NET SDK still posts its own JSON, not OTLP.** Python and JavaScript emit OTLP GenAI spans; the .NET SDK uses a simpler internal endpoint for now. Same data in the dashboard, but unifying it on OTLP is on the list.
 - **"Any language" is verified for three.** .NET, Python and JavaScript are tested end to end. Anything else emitting OTel GenAI spans should work, I just haven't proven each one.
-- **Agent and MCP traces are shallow today.** Tool calls get recorded, but not yet as a full step-by-step run tree. That's the next direction (see the roadmap), not something it does well right now.
+- **Agent runs are observable, not yet scored.** The trace view shows the run as a nested tree and surfaces MCP tool calls, but there's no eval yet that scores whether the agent picked the right tools in the right order. That's the next direction (see the roadmap).
 
 ## Status and what's next
 
-Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends scored by keyword or an LLM judge, run straight from the dashboard. Next up, evals get deeper (full plan in the [roadmap](docs/roadmap.md)):
+Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and a lot of depth on top:
 
-- **Evals in CI**, a command that fails the build when answer quality drops.
-- **Model comparison**, run a golden set across models and see quality and cost side by side.
-- **Author evals in the dashboard**, including turning a real trace into a test case.
+- **Evals in CI.** `seerlens eval <set> --min 0.8` runs a golden set and exits non-zero when quality drops, with regression-vs-baseline gating and JUnit output. There's a ready-to-copy [GitHub Action](docs/ci-eval-gate.yml).
+- **Model and prompt comparison.** Run a set across several models (and an optional system prompt) and see quality, cost, and latency side by side.
+- **Author evals in the dashboard.** Create and edit golden sets without touching JSON, and turn a real trace into a test case with one click.
+- **Cost you can act on.** Spend by model and by day, a monthly budget, and an alert when you cross it.
+- **Agent and MCP runs.** The trace view nests steps as a tree and calls out MCP tool calls with their arguments and result.
+
+What's still ahead is in the [roadmap](docs/roadmap.md): run-level evals that score an agent's tool choices, and trustworthy rubric-based judging.
 
 ## Made by
 

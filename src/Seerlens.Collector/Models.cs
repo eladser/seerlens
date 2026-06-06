@@ -56,3 +56,19 @@ public record SpanRow(
     string? Error);
 
 public record Stats(int Traces, double TotalCostUsd, double AvgDurationMs);
+
+// Spend rollups for the cost view: month-to-date and all-time totals, plus
+// breakdowns by model and by day.
+public record Spend(
+    double MonthToDateUsd,
+    double TotalUsd,
+    IReadOnlyList<ModelSpend> ByModel,
+    IReadOnlyList<DaySpend> Daily);
+
+public record ModelSpend(string Model, double CostUsd, int Calls, long Tokens);
+
+public record DaySpend(string Date, double CostUsd);
+
+// What the cost view gets: the rollups, the configured budget, and whether spend
+// has crossed the line so the dashboard can shout about it.
+public record CostReport(Spend Spend, Budget Budget, bool OverBudget, double? BudgetUsedFraction);
