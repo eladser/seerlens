@@ -190,6 +190,18 @@ cd sdk/js && node --test               # js SDK
 
 The .NET tests cover the store and pricing, OTLP span mapping, the ingest and eval endpoints, and the SDK's safety contract (it records on success, rethrows real errors, and a broken collector can't break the host app). The Python and JS tests check the OTLP payload each SDK builds. All three suites run in CI on every push.
 
+## Known limitations
+
+What this doesn't do, since the tradeoffs were deliberate:
+
+- **One machine, one person.** No auth, no shared dashboard, history lives in a local SQLite file. That's the point for a dev-loop tool, but if your team wants a common view of production traffic, this isn't it. A hosted version is noted below and stays optional.
+- **SQLite isn't built for a production firehose.** Fine for the dev loop and thousands of traces. Point a high-volume production stream at it and you'd want a columnar store instead. There's no sampling or retention policy yet, so the file grows until you clear it.
+- **Cost depends on a pricing table.** Tokens become dollars from a per-model price list, so a brand-new model or a price change needs the table updated or the cost reads as zero. Token counts are always right; the dollar figure is only as fresh as the table.
+- **LLM-judge scoring costs money and isn't perfectly repeatable.** The judge is itself a model call, so it adds latency and spend, and two runs can disagree at the margin. The keyword scorer is deterministic but blunt. Pick the one that fits what you're checking.
+- **The .NET SDK still posts its own JSON, not OTLP.** Python and JavaScript emit OTLP GenAI spans; the .NET SDK uses a simpler internal endpoint for now. Same data in the dashboard, but unifying it on OTLP is on the list.
+- **"Any language" is verified for three.** .NET, Python and JavaScript are tested end to end. Anything else emitting OTel GenAI spans should work, I just haven't proven each one.
+- **Agent and MCP traces are shallow today.** Tool calls get recorded, but not yet as a full step-by-step run tree. That's the next direction (see the roadmap), not something it does well right now.
+
 ## Status and what's next
 
 Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and eval trends scored by keyword or an LLM judge, run straight from the dashboard. Next up, evals get deeper (full plan in the [roadmap](docs/roadmap.md)):
