@@ -228,16 +228,13 @@ What this doesn't do, since the tradeoffs were deliberate:
 
 ## Status and what's next
 
-Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything else, and a lot of depth on top:
+1.0 is out and stable. Install it as a dotnet tool, from NuGet, PyPI, or npm, or run the Docker image. Everything above is what ships today.
 
-- **Evals in CI.** `seerlens eval <set> --min 0.8` runs a golden set and exits non-zero when quality drops, with regression-vs-baseline gating and JUnit output. There's a ready-to-copy [GitHub Action](docs/ci-eval-gate.yml).
-- **Model and prompt comparison.** Run a set across several models (and an optional system prompt) and see quality, cost, and latency side by side.
-- **Author evals in the dashboard.** Create and edit golden sets without touching JSON, and turn a real trace into a test case with one click.
-- **Cost you can act on.** Spend by model and by day, a monthly budget, and an alert when you cross it.
-- **Agent and MCP runs.** The trace view nests steps as a tree, calls out MCP tool calls with their arguments and result, and scores whether the agent used the tools you expected, in order.
-- **Alerts and export.** Point a webhook (Slack works) at regressions and over-budget spend, and export any trace or eval run as JSON.
+What's next, with the full plan in the [roadmap](docs/roadmap.md):
 
-What's still ahead is in the [roadmap](docs/roadmap.md): scoring agents by actually running them with tools (today it scores a recorded run), and trustworthy rubric-based judging.
+- **Score agents by running them.** Give an eval real tools, run a tool-capable agent on each case, and grade the calls it actually makes, not just a recorded trace.
+- **Judging you can trust.** Rubric-based scoring and more scorer types (JSON-schema, regex, embedding similarity), so the number you gate a build on holds up.
+- **Deeper in .NET.** A DI / ASP.NET setup extension and a Semantic Kernel filter that traces agents with no extra code.
 
 ## Made by
 
