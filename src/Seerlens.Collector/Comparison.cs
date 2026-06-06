@@ -11,13 +11,12 @@ public sealed class Comparison(AiProvider ai)
 {
     public async Task<CompareResult> Run(GoldenSet set, IReadOnlyList<string> models, string scorerName, string? promptPrefix)
     {
+        IScorer scorer = scorerName == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
         var rows = new List<CompareRow>(models.Count);
         foreach (var model in models)
         {
             if (ai.ClientFor(model) is not { } client)
                 continue;
-
-            IScorer scorer = scorerName == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
             rows.Add(await RunOne(set, model, client, scorer, promptPrefix));
         }
         return new CompareResult(set.Name, scorerName, promptPrefix, rows);

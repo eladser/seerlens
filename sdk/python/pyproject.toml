@@ -1,6 +1,6 @@
 [project]
 name = "seerlens"
-version = "0.2.0"
+version = "1.0.0"
 description = "Send your Python app's LLM calls to Seerlens, the local DevTools for AI calls."
 readme = "README.md"
 requires-python = ">=3.9"

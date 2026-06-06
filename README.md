@@ -12,7 +12,7 @@ Think of it as the browser Network tab, pointed at your AI calls.
 
 Built .NET-first. It adds the two things the .NET AI stack doesn't give you, answer-quality evals and cost in dollars, and because it speaks OpenTelemetry, calls from Python, JavaScript or any other language land in the same dashboard.
 
-![Seerlens demo](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/demo.gif)
+![The Seerlens dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/cost-breakdown.png)
 
 ## The problem
 
@@ -28,6 +28,10 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 - **The actual prompt and completion**, not a summary.
 - **Failures, captured.** A call that throws is recorded with its error, so you can see what broke.
 - **Eval trends.** Score a golden set against your prompts and watch the number over time, so a model swap that drops quality shows up as a line heading down, not a surprise in production.
+- **Model comparison.** Run one golden set across several models (and an optional system prompt) and see quality, cost, and latency side by side.
+- **Cost control.** Set a monthly budget and get warned when you cross it, with spend broken down by model and by day.
+- **Agent and MCP runs.** A run shows as a step tree, MCP tool calls show their arguments and result, and you can score whether the agent used the tools you expected, in order.
+- **Alerts and export.** Point a webhook at regressions and over-budget spend, and export any trace or eval run as JSON.
 
 ![Failed call](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/error-trace.png)
 
@@ -58,11 +62,16 @@ That's it. Every call through `client` shows up in the dashboard. To group a mul
 using (SeerlensTrace.Begin("answer support ticket"))
 {
     await client.GetResponseAsync(messages);
-    using (SeerlensTrace.Tool("lookupOrder"))
-        order = await orders.Find(id);
+
+    using (var t = SeerlensTrace.Tool("lookupOrder", $"{{\"id\":\"{id}\"}}"))
+        t.Complete((order = await orders.Find(id)).Status);
+
+    // an MCP tool call is the same idea with .Mcp(...)
     await client.GetResponseAsync(followup);
 }
 ```
+
+The tool and MCP calls show up as steps in the trace, with their arguments and result, and you can score whether an agent used the tools you expected from the trace view.
 
 The SDK ships traces on a background queue. If the collector is down or busy, traces are dropped and your app keeps running. Instrumentation never blocks or throws into your code.
 
@@ -148,21 +157,25 @@ It exits non-zero when the mean score is below `--min`, or when it dropped too f
 
 ## A look around
 
-Spend by provider and model, so you can see where the money goes:
+An agent run as a step tree, with the MCP tool calls and their arguments and result:
 
-![Spend by provider and model](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/cost-breakdown.png)
-
-A nested trace: model calls and tool calls on a real time ruler, with the exact prompt and completion:
-
-![Trace waterfall](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/trace-waterfall.png)
+![Agent run with MCP tool calls](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/trace-waterfall.png)
 
 Answer quality over time. Here the score falls off a cliff after a model swap:
 
 ![Eval trend](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-trend.png)
 
+Compare models on the same golden set, quality next to cost and latency:
+
+![Model comparison](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/compare.png)
+
+Spend against a monthly budget, broken down by model, with an alert when you cross it:
+
+![Cost and budget](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/cost-budget.png)
+
 ## How it works
 
-The collector takes traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. It accepts both a small JSON contract (what the .NET SDK posts) and raw OpenTelemetry traces at `/v1/traces`, normalizing GenAI spans from either into one model. The dashboard is a small React app the collector serves itself.
+The collector takes traces, stores them in a local SQLite file, and pushes new ones to the dashboard over server-sent events. Every SDK (.NET, Python, JavaScript) emits OpenTelemetry GenAI spans to `/v1/traces`, and the collector normalizes them into one model, so any other OTLP exporter works too. A simpler legacy JSON endpoint is still accepted for compatibility. The dashboard is a small React app the collector serves itself.
 
 ```
 your app ──► Seerlens SDK (or any OTLP exporter) ──► collector ──► SQLite
@@ -200,7 +213,7 @@ cd sdk/python && python -m unittest    # python SDK
 cd sdk/js && node --test               # js SDK
 ```
 
-The .NET tests cover the store and pricing, OTLP span mapping, the ingest and eval endpoints, and the SDK's safety contract (it records on success, rethrows real errors, and a broken collector can't break the host app). The Python and JS tests check the OTLP payload each SDK builds. All three suites run in CI on every push.
+The .NET tests cover the store and pricing, OTLP span mapping, the ingest, eval, compare, cost, and agent-tool-scoring endpoints, golden-set CRUD, settings, and the SDK's safety contract (it records on success, rethrows real errors, builds valid OTLP, and a broken collector can't break the host app). The Python and JS tests check the OTLP payload each SDK builds. All three suites run in CI on every push.
 
 ## Known limitations
 
@@ -208,11 +221,10 @@ What this doesn't do, since the tradeoffs were deliberate:
 
 - **One machine, one person.** No auth, no shared dashboard, history lives in a local SQLite file. That's the point for a dev-loop tool, but if your team wants a common view of production traffic, this isn't it. A hosted version is noted below and stays optional.
 - **SQLite isn't built for a production firehose.** Fine for the dev loop and thousands of traces. Point a high-volume production stream at it and you'd want a columnar store instead. There's no sampling or retention policy yet, so the file grows until you clear it.
-- **Cost depends on a pricing table.** Tokens become dollars from a per-model price list, so a brand-new model or a price change needs the table updated or the cost reads as zero. Token counts are always right; the dollar figure is only as fresh as the table.
+- **Cost depends on a pricing table.** Tokens become dollars from a per-model price list, so a brand-new model or a price change needs the table updated or the cost reads as zero. You can point `SEERLENS_PRICING_FILE` at a JSON to override prices, but token counts are always right while the dollar figure is only as fresh as the table.
 - **LLM-judge scoring costs money and isn't perfectly repeatable.** The judge is itself a model call, so it adds latency and spend, and two runs can disagree at the margin. The keyword scorer is deterministic but blunt. Pick the one that fits what you're checking.
-- **The .NET SDK still posts its own JSON, not OTLP.** Python and JavaScript emit OTLP GenAI spans; the .NET SDK uses a simpler internal endpoint for now. Same data in the dashboard, but unifying it on OTLP is on the list.
-- **"Any language" is verified for three.** .NET, Python and JavaScript are tested end to end. Anything else emitting OTel GenAI spans should work, I just haven't proven each one.
-- **Agent runs are observable, not yet scored.** The trace view shows the run as a nested tree and surfaces MCP tool calls, but there's no eval yet that scores whether the agent picked the right tools in the right order. That's the next direction (see the roadmap).
+- **"Any language" is verified for three.** .NET, Python and JavaScript are tested end to end and all emit OTLP GenAI spans. Anything else emitting the same should work, I just haven't proven each one.
+- **Agent scoring works on recorded runs, not live ones.** You can score whether a trace used the expected tools in the right order, but Seerlens doesn't yet run an agent with tools itself to produce that trace. Scoring a live tool-calling run is the next direction (see the roadmap).
 
 ## Status and what's next
 
@@ -222,9 +234,10 @@ Tracing with SDKs for .NET, Python, and JavaScript, OTLP ingest for everything e
 - **Model and prompt comparison.** Run a set across several models (and an optional system prompt) and see quality, cost, and latency side by side.
 - **Author evals in the dashboard.** Create and edit golden sets without touching JSON, and turn a real trace into a test case with one click.
 - **Cost you can act on.** Spend by model and by day, a monthly budget, and an alert when you cross it.
-- **Agent and MCP runs.** The trace view nests steps as a tree and calls out MCP tool calls with their arguments and result.
+- **Agent and MCP runs.** The trace view nests steps as a tree, calls out MCP tool calls with their arguments and result, and scores whether the agent used the tools you expected, in order.
+- **Alerts and export.** Point a webhook (Slack works) at regressions and over-budget spend, and export any trace or eval run as JSON.
 
-What's still ahead is in the [roadmap](docs/roadmap.md): run-level evals that score an agent's tool choices, and trustworthy rubric-based judging.
+What's still ahead is in the [roadmap](docs/roadmap.md): scoring agents by actually running them with tools (today it scores a recorded run), and trustworthy rubric-based judging.
 
 ## Made by
 

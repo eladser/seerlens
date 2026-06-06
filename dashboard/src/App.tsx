@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { clearTraces } from './api'
 import { CompareView } from './components/CompareView'
 import { CostBreakdown } from './components/CostBreakdown'
 import { CostView } from './components/CostView'
@@ -12,7 +13,7 @@ import { useLive } from './useLive'
 type View = 'traces' | 'evals' | 'compare' | 'cost' | 'settings'
 
 export default function App() {
-  const { traces, latestId, connected } = useLive()
+  const { traces, latestId, connected, clear } = useLive()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<View>('traces')
 
@@ -83,6 +84,18 @@ export default function App() {
                 title="show only failed calls"
               >
                 errors
+              </button>
+              <button
+                className="filter-toggle"
+                title="delete all traces"
+                onClick={async () => {
+                  if (!confirm('Delete all traces?')) return
+                  await clearTraces().catch(() => {})
+                  clear()
+                  setSelectedId(null)
+                }}
+              >
+                clear
               </button>
             </div>
             <div className="sidebar-scroll">

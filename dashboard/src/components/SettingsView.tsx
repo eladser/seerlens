@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getConfig, setBudget } from '../api'
+import { getConfig, setAlerts, setBudget } from '../api'
 import type { Config } from '../types'
 
 // One place to see how the collector is wired up and set the spend budget. The
@@ -9,10 +9,15 @@ export function SettingsView() {
   const [cfg, setCfg] = useState<Config | null>(null)
   const [draft, setDraft] = useState('')
   const [saved, setSaved] = useState(false)
+  const [webhook, setWebhook] = useState('')
+  const [drop, setDrop] = useState('5')
+  const [hookSaved, setHookSaved] = useState(false)
 
   const load = () => getConfig().then(c => {
     setCfg(c)
     setDraft(c.budget.monthlyUsd != null ? String(c.budget.monthlyUsd) : '')
+    setWebhook(c.alerts.webhookUrl ?? '')
+    setDrop(String(Math.round(c.alerts.regressionDrop * 100)))
   }).catch(() => {})
 
   useEffect(() => { load() }, [])
@@ -22,6 +27,17 @@ export function SettingsView() {
     await setBudget({ monthlyUsd: Number.isFinite(n) && n > 0 ? n : null, alertPerCallUsd: null }).catch(() => {})
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
+    load()
+  }
+
+  async function saveAlerts() {
+    const pct = parseFloat(drop)
+    await setAlerts({
+      webhookUrl: webhook.trim() || null,
+      regressionDrop: Number.isFinite(pct) ? pct / 100 : 0.05,
+    }).catch(() => {})
+    setHookSaved(true)
+    setTimeout(() => setHookSaved(false), 1500)
     load()
   }
 
@@ -51,6 +67,26 @@ export function SettingsView() {
           <span className="muted run-note">blank clears it</span>
         </div>
         <p className="muted hint">The Cost tab shows month-to-date against this and warns when you get close.</p>
+      </section>
+
+      <section className="settings-block">
+        <h3>Alerts</h3>
+        <div className="alert-set">
+          <input
+            className="models-input wide"
+            value={webhook}
+            onChange={e => setWebhook(e.target.value)}
+            placeholder="webhook URL (a Slack incoming webhook works)"
+            spellCheck={false}
+          />
+          <div className="budget-set">
+            <label className="muted">warn when an eval drops more than</label>
+            <input value={drop} onChange={e => setDrop(e.target.value)} inputMode="decimal" />
+            <span className="muted">%</span>
+            <button className="run-btn" onClick={saveAlerts}>{hookSaved ? 'saved' : 'Save'}</button>
+          </div>
+        </div>
+        <p className="muted hint">Fires when an eval run regresses past that drop, or when spend crosses the budget. Leave the URL blank to turn alerts off.</p>
       </section>
 
       <section className="settings-block">

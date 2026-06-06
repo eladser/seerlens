@@ -92,6 +92,16 @@ export type CostReport = {
   budgetUsedFraction: number | null
 }
 
+export type ToolScoreResult = {
+  score: number
+  orderOk: boolean
+  missing: string[]
+  expected: string[]
+  actual: string[]
+}
+
+export type Alerts = { webhookUrl: string | null; regressionDrop: number }
+
 export type Config = {
   providerConfigured: boolean
   model: string
@@ -100,4 +110,5 @@ export type Config = {
   setCount: number
   pricingOverride: boolean
   budget: Budget
+  alerts: Alerts
 }

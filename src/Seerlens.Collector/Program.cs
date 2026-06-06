@@ -28,6 +28,7 @@ builder.Services.AddSingleton(EvalStore.ForFile(dbPath));
 builder.Services.AddSingleton(new AiProvider(builder.Configuration));
 builder.Services.AddSingleton(new SettingsStore(
     builder.Configuration["SEERLENS_SETTINGS"] ?? "seerlens-settings.json"));
+builder.Services.AddSingleton<Alerter>();
 builder.Services.AddSingleton(new GoldenSets(
     builder.Configuration["SEERLENS_EVALS_DIR"] ?? Path.Combine(AppContext.BaseDirectory, "evals")));
 builder.Services.AddSingleton<LiveFeed>();
@@ -67,6 +68,10 @@ app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(limit ?? 
 
 app.MapGet("/api/traces/{id}", (string id, TraceStore store) =>
     store.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
+
+app.MapDelete("/api/traces", (TraceStore store) => { store.Clear(); return Results.NoContent(); });
+
+app.MapDelete("/api/traces/{id}", (string id, TraceStore store) => { store.Delete(id); return Results.NoContent(); });
 
 app.MapPost("/eval/runs", (EvalRunIn run, EvalStore evals) =>
 {
@@ -113,16 +118,23 @@ app.MapPost("/api/sets/{name}/cases", (string name, Seerlens.Evals.GoldenCase bo
 
 // Run a golden set through the configured provider and score it. The target
 // produces the answers; the scorer is keyword (offline) or an LLM judge.
-app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, EvalStore evals) =>
+app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, EvalStore evals,
+    SettingsStore settings, Alerter alerter) =>
 {
     if (!ai.Configured)
         return Results.BadRequest(new { error = "no provider configured; set SEERLENS_AI_BASE_URL/KEY/MODEL" });
     if (sets.Get(req.Set) is not { } set)
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
 
+    var prev = evals.List(req.Set).LastOrDefault();   // most recent run before this one
     IScorer scorer = req.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
     var run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
-    return Results.Ok(evals.Add(ToEvalRunIn(run)));
+    var summary = evals.Add(ToEvalRunIn(run));
+
+    if (prev is not null && prev.Score - run.Score > settings.GetAlerts().RegressionDrop)
+        _ = alerter.EvalRegressed(req.Set, prev.Score, run.Score);
+
+    return Results.Ok(summary);
 });
 
 // Run a set across several models (and an optional system prompt) and return
@@ -134,15 +146,34 @@ app.MapPost("/eval/compare", async (CompareRequest req, GoldenSets sets, AiProvi
     if (sets.Get(req.Set) is not { } set)
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
 
-    var models = req.Models is { Count: > 0 } ? req.Models : [ai.Model];
+    // cap the fan-out so one request can't kick off a hundred paid model runs
+    var models = req.Models is { Count: > 0 } ? req.Models.Take(8).ToList() : [ai.Model];
     var result = await new Comparison(ai).Run(set, models, req.Scorer ?? "keyword", req.PromptPrefix);
     return Results.Ok(result);
+});
+
+// Run-level eval: score a recorded agent trace's actual tool calls against the
+// tools you expected, in order. Answers "did the agent use the right tools?"
+app.MapPost("/eval/tools", (ToolScoreRequest req, TraceStore store) =>
+{
+    if (store.Get(req.TraceId) is not { } detail)
+        return Results.NotFound(new { error = $"unknown trace: {req.TraceId}" });
+
+    var actual = detail.Spans
+        .Where(s => s.Kind is "tool" or "mcp")
+        .OrderBy(s => s.StartedAt)
+        .Select(s => s.Name)
+        .ToList();
+
+    var expected = req.Expected ?? [];
+    var result = Seerlens.Evals.ToolSequence.Score(expected, actual);
+    return Results.Ok(new { score = result.Score, orderOk = result.OrderOk, missing = result.Missing, expected, actual });
 });
 
 app.MapGet("/api/stats", (TraceStore store) => store.Stats());
 
 // Cost view: spend rollups plus the budget and whether it's been crossed.
-app.MapGet("/api/cost", (TraceStore store, SettingsStore settings) =>
+app.MapGet("/api/cost", (TraceStore store, SettingsStore settings, Alerter alerter) =>
 {
     var now = DateTimeOffset.UtcNow;
     var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
@@ -152,13 +183,34 @@ app.MapGet("/api/cost", (TraceStore store, SettingsStore settings) =>
     var budget = settings.GetBudget();
     var frac = budget.MonthlyUsd is { } m and > 0 ? spend.MonthToDateUsd / m : (double?)null;
     var over = frac >= 1.0;
+
+    if (over && budget.MonthlyUsd is { } cap)
+        _ = alerter.MaybeOverBudget(spend.MonthToDateUsd, cap, $"{now.Year}-{now.Month:D2}");
+
     return new CostReport(spend, budget, over, frac);
 });
 
 app.MapPut("/api/budget", (Budget budget, SettingsStore settings) =>
 {
-    settings.SetBudget(budget);
-    return Results.Ok(budget);
+    // drop nonsense (negative, NaN) rather than store it
+    var monthly = budget.MonthlyUsd is { } m && double.IsFinite(m) && m > 0 ? m : (double?)null;
+    var clean = new Budget(monthly, budget.AlertPerCallUsd);
+    settings.SetBudget(clean);
+    return Results.Ok(clean);
+});
+
+app.MapGet("/api/alerts", (SettingsStore settings) => settings.GetAlerts());
+
+app.MapPut("/api/alerts", (Alerts alerts, SettingsStore settings) =>
+{
+    // only accept an http(s) webhook; anything else is treated as "no webhook"
+    var url = Uri.TryCreate(alerts.WebhookUrl, UriKind.Absolute, out var u) && u.Scheme is "http" or "https"
+        ? alerts.WebhookUrl
+        : null;
+    var drop = double.IsFinite(alerts.RegressionDrop) ? Math.Clamp(alerts.RegressionDrop, 0, 1) : 0.05;
+    var clean = new Alerts(url, drop);
+    settings.SetAlerts(clean);
+    return Results.Ok(clean);
 });
 
 // A read-only look at how the collector is configured, for the Settings page.
@@ -171,6 +223,7 @@ app.MapGet("/api/config", (AiProvider ai, GoldenSets sets, SettingsStore setting
     setCount = sets.Names.Count,
     pricingOverride = Pricing.HasOverride,
     budget = settings.GetBudget(),
+    alerts = settings.GetAlerts(),
 });
 
 app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken ct) =>
@@ -228,5 +281,6 @@ static EvalRunIn ToEvalRunIn(Seerlens.Evals.EvalRun r) =>
 
 record RunRequest(string Set, string Scorer);
 record CompareRequest(string Set, List<string>? Models, string? Scorer, string? PromptPrefix);
+record ToolScoreRequest(string TraceId, List<string>? Expected);
 
 public partial class Program { }

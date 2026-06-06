@@ -52,13 +52,13 @@ Most of what follows is now built (v0.3 through the agent/MCP views). The headin
 
 **Why it matters:** counting tokens is table stakes, and the built-in viewers already do it. Counting dollars, with a line you don't want to cross and a heads-up when you approach it, is the part teams actually act on and the part a token-counter leaves on the floor. Persistence is what makes this possible at all, which is the same reason the eval trend works and a live viewer's in-memory log doesn't.
 
-## v0.7: Agents and MCP (observability shipped, scoring ahead)
+## v0.7: Agents and MCP (observability + recorded-run scoring shipped)
 
 **Goal:** follow where the failures are actually moving. A single LLM call is the easy case. The hard, current case is agents: multi-step runs that call tools, hand off context, and fail by returning a confident, well-formed, wrong answer after one bad tool call.
 
 - **Step-level agent traces (shipped).** The trace view lays a run out as a tree, every model call, tool call and retry nested by parent, so you can see where it went sideways instead of reading a flat list.
 - **MCP tool-call visibility (shipped).** MCP calls come in as their own span kind with the tool name, the arguments, and the result, and the trace header shows the tool sequence in order.
-- **Evals that score a run, not just an answer (ahead).** Did the agent pick the right tool, in the right order, and stop when it should have? That needs a tool-running harness, not just a chat client, so it's the genuine next build. Nobody answers it in .NET.
+- **Evals that score a run, not just an answer (recorded runs shipped).** Score a trace's actual tool calls against the tools you expected, in order, right from the trace view. The remaining piece is running an agent with tools to produce that trace live; today you score a run that already happened. Nobody answers this in .NET.
 
 **Why it matters:** this is the layer the whole field is moving to, and almost every entrant is Python or Go. None of it is native to .NET. It's also the part I work with day to day (MCP servers, agent orchestration, fallback chains), so it's the most honest place for this project to go deep.
 

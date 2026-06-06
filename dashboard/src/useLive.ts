@@ -38,5 +38,11 @@ export function useLive() {
     }
   }, [])
 
-  return { traces, latestId, connected }
+  const clear = () => {
+    seen.current.clear()
+    setTraces([])
+    setLatestId(null)
+  }
+
+  return { traces, latestId, connected, clear }
 }

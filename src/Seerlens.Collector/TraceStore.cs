@@ -191,6 +191,32 @@ public sealed class TraceStore
         return new TraceDetail(trace, spans);
     }
 
+    public void Delete(string id)
+    {
+        using var db = Open();
+        using var tx = db.BeginTransaction();
+        Run(db, "delete from spans where trace_id = $id", id);
+        Run(db, "delete from traces where id = $id", id);
+        tx.Commit();
+    }
+
+    public void Clear()
+    {
+        using var db = Open();
+        using var tx = db.BeginTransaction();
+        Exec(db, "delete from spans;");
+        Exec(db, "delete from traces;");
+        tx.Commit();
+    }
+
+    static void Run(SqliteConnection db, string sql, string id)
+    {
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = sql;
+        Bind(cmd, "$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
     public Stats Stats()
     {
         using var db = Open();

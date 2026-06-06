@@ -250,6 +250,15 @@ body {
 }
 .tool-step:hover { color: var(--teal); }
 .tool-arrow { color: var(--faint); margin-left: 2px; }
+.tool-score-btn { margin: 0 0 18px; }
+.tool-score { margin-bottom: 18px; }
+.tool-score-row { display: flex; gap: 8px; align-items: center; }
+.tool-score-row .models-input { flex: 1; }
+.tool-score-result { display: flex; gap: 12px; align-items: baseline; margin-top: 10px; font-size: 13px; }
+
+/* export buttons */
+.detail-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.eval-head .export { margin-left: auto; }
 
 /* settings */
 .settings { padding: 22px 24px; max-width: 640px; }
@@ -257,6 +266,9 @@ body {
 .settings-block h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
 .settings-row { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
 .settings-row .mono { font-size: 12px; word-break: break-all; text-align: right; }
+.alert-set { display: flex; flex-direction: column; gap: 10px; }
+.alert-set .budget-set { margin-bottom: 0; }
+.alert-set .budget-set input { width: 56px; }
 .hint { font-size: 12px; line-height: 1.55; margin: 10px 0 0; }
 .hint code { font-family: var(--mono); font-size: 11px; background: var(--panel); padding: 1px 4px; border-radius: 3px; }
 
@@ -296,7 +308,12 @@ body {
 .sk-rows { height: 180px; margin-top: 22px; }
 
 /* top nav */
-.nav { display: flex; gap: 4px; }
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* on a narrow window let the stats drop rather than squeeze the tabs */
+@media (max-width: 720px) {
+  .topbar-stats { display: none; }
+}
 .nav button {
   background: none;
   border: none;

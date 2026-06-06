@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Seerlens.Sdk;
 
@@ -69,6 +70,46 @@ public class SeerlensChatClientTests
         Assert.Equal(3, trace.Spans.Count);
         Assert.Equal(2, trace.Spans.Count(s => s.Kind == "llm"));
         Assert.Single(trace.Spans, s => s.Kind == "tool" && s.Name == "lookupOrder");
+    }
+
+    [Fact]
+    public void Otlp_export_emits_root_genai_and_mcp_spans()
+    {
+        var trace = new TracePayload("t1", "research agent", 1000, 300, "openai", "gpt-4o", "ok",
+        [
+            new SpanPayload("s1", null, "chat", "llm", 1000, 100, "gpt-4o", 40, 12, "hi", "there", null),
+            new SpanPayload("s2", null, "search_docs", "mcp", 1100, 80, null, null, null, "{\"q\":\"x\"}", "hit", null),
+        ]);
+
+        var json = JsonSerializer.Serialize(OtlpExport.Build(trace));
+
+        // a root span carrying the trace name, plus the standard attributes
+        Assert.Contains("\"research agent\"", json);
+        Assert.Contains("gen_ai.request.model", json);
+        Assert.Contains("gen_ai.usage.input_tokens", json);
+        Assert.Contains("mcp.tool.name", json);
+        Assert.Contains("\"parentSpanId\":\"t1\"", json); // steps nested under the root
+    }
+
+    [Fact]
+    public async Task Mcp_call_records_kind_arguments_and_result()
+    {
+        var sink = new CapturingSink();
+        SeerlensTrace.UseSink(sink);
+
+        using (SeerlensTrace.Begin("research agent"))
+        using (var t = SeerlensTrace.Mcp("search_docs", "{\"q\":\"refunds\"}"))
+        {
+            await Task.Delay(1);
+            t.Complete("3 hits");
+        }
+
+        var trace = Assert.Single(sink.Traces);
+        var span = Assert.Single(trace.Spans);
+        Assert.Equal("mcp", span.Kind);
+        Assert.Equal("search_docs", span.Name);
+        Assert.Equal("{\"q\":\"refunds\"}", span.PromptText);
+        Assert.Equal("3 hits", span.CompletionText);
     }
 
     [Fact]
