@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { getEvalRun, getEvals, getSets, runEval, type SetsInfo } from '../api'
 import { ago } from '../format'
 import type { EvalRun, EvalRunDetail } from '../types'
+import { SetEditor } from './SetEditor'
 import { TrendChart } from './TrendChart'
 
 type Scorer = 'keyword' | 'llm-judge'
+type Editing = { name: string | null } | null
 
 export function EvalsView() {
   const [runs, setRuns] = useState<EvalRun[]>([])
@@ -14,11 +16,13 @@ export function EvalsView() {
   const [running, setRunning] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
   const [detail, setDetail] = useState<EvalRunDetail | null>(null)
+  const [editing, setEditing] = useState<Editing>(null)
 
   const load = () => getEvals().then(setRuns).catch(() => {})
+  const loadSets = () => getSets().then(setInfo).catch(() => {})
 
   useEffect(() => { load() }, [])
-  useEffect(() => { getSets().then(setInfo).catch(() => {}) }, [])
+  useEffect(() => { loadSets() }, [])
 
   // default the selected set once data arrives
   useEffect(() => {
@@ -61,6 +65,22 @@ export function EvalsView() {
   const latest = forSet[forSet.length - 1]
   const delta = latest && first ? latest.score - first.score : 0
 
+  if (editing !== null) {
+    return (
+      <div className="evals">
+        <SetEditor
+          name={editing.name}
+          onClose={() => setEditing(null)}
+          onSaved={name => {
+            setEditing(null)
+            loadSets()
+            if (name) setSet(name)
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="evals">
       <div className="run-bar">
@@ -77,6 +97,9 @@ export function EvalsView() {
         <button className="run-btn" onClick={run} disabled={!info?.aiConfigured || !set || running}>
           {running ? 'running…' : 'Run eval'}
         </button>
+
+        <button className="ghost-btn" onClick={() => setEditing({ name: set })} disabled={!set}>Edit set</button>
+        <button className="ghost-btn" onClick={() => setEditing({ name: null })}>New set</button>
 
         {info && (info.aiConfigured
           ? <span className="muted run-note">{info.model}</span>

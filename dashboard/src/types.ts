@@ -51,3 +51,53 @@ export type EvalRun = {
 export type EvalCase = { input: string; answer: string; score: number }
 
 export type EvalRunDetail = { run: EvalRun; cases: EvalCase[] }
+
+export type GoldenCase = {
+  id: string
+  input: string
+  keywords: string[] | null
+  criteria: string | null
+}
+
+export type GoldenSet = { name: string; cases: GoldenCase[] }
+
+export type CompareRow = {
+  model: string
+  score: number
+  costUsd: number | null
+  avgLatencyMs: number
+  tokens: number
+}
+
+export type CompareResult = {
+  set: string
+  scorer: string
+  promptPrefix: string | null
+  rows: CompareRow[]
+}
+
+export type ModelSpend = { model: string; costUsd: number; calls: number; tokens: number }
+export type DaySpend = { date: string; costUsd: number }
+export type Spend = {
+  monthToDateUsd: number
+  totalUsd: number
+  byModel: ModelSpend[]
+  daily: DaySpend[]
+}
+export type Budget = { monthlyUsd: number | null; alertPerCallUsd: number | null }
+export type CostReport = {
+  spend: Spend
+  budget: Budget
+  overBudget: boolean
+  budgetUsedFraction: number | null
+}
+
+export type Config = {
+  providerConfigured: boolean
+  model: string
+  endpoint: string | null
+  evalsDir: string
+  setCount: number
+  pricingOverride: boolean
+  budget: Budget
+}

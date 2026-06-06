@@ -8,7 +8,9 @@ That last part is the whole opening. Seerlens moves up the stack, from watching 
 
 And there's a place to aim all of it. In the wider market this layer is crowded, but in .NET it's empty: the .NET AI stack traces calls and stops there, no quality scoring, no cost in dollars. So Seerlens leads **.NET-first**, evals and cost native to the ecosystem that has no other option, while OTLP ingest keeps the door open to any language. That's the identity the rest of this roadmap serves. Depth over breadth, and each release ships on its own.
 
-## v0.3: Evals in CI
+Most of what follows is now built (v0.3 through the agent/MCP views). The headings note what's shipped and what's still ahead.
+
+## v0.3: Evals in CI (shipped)
 
 **Goal:** gate your builds on answer quality, the way you already gate on unit tests.
 
@@ -19,7 +21,7 @@ And there's a place to aim all of it. In the wider market this layer is crowded,
 
 **Why it matters:** a live dashboard can show you a call, it can't block a merge. The CI gate is the one workflow a trace viewer structurally can't own, and "I fail the build when answer quality regresses" is the clearest signal that you've run AI for real.
 
-## v0.4: Model and prompt comparison
+## v0.4: Model and prompt comparison (shipped)
 
 **Goal:** answer "should I switch models, or change this prompt?" with quality and cost side by side.
 
@@ -29,7 +31,7 @@ And there's a place to aim all of it. In the wider market this layer is crowded,
 
 **Why it matters:** a viewer shows you one call. This compares many and tells you which one to ship. It's the cost-versus-quality decision the spend view and the eval trend only hint at, made explicit, which is what separates a senior AI engineer from someone who just reaches for the biggest model.
 
-## v0.5: Author evals where you work
+## v0.5: Author evals where you work (shipped)
 
 **Goal:** build and manage golden sets without leaving the tool, and seed them from real usage.
 
@@ -39,7 +41,7 @@ And there's a place to aim all of it. In the wider market this layer is crowded,
 
 **Why it matters:** the golden set is the actual work of evals, and today it's a JSON file. Making it first-class, and seeding it from captured traffic, is the workflow real teams want.
 
-## v0.6: Cost you can act on
+## v0.6: Cost you can act on (shipped)
 
 **Goal:** turn the spend view from a number you glance at into a budget that warns you.
 
@@ -50,13 +52,13 @@ And there's a place to aim all of it. In the wider market this layer is crowded,
 
 **Why it matters:** counting tokens is table stakes, and the built-in viewers already do it. Counting dollars, with a line you don't want to cross and a heads-up when you approach it, is the part teams actually act on and the part a token-counter leaves on the floor. Persistence is what makes this possible at all, which is the same reason the eval trend works and a live viewer's in-memory log doesn't.
 
-## v0.7 and beyond: agents and MCP
+## v0.7: Agents and MCP (observability shipped, scoring ahead)
 
 **Goal:** follow where the failures are actually moving. A single LLM call is the easy case. The hard, current case is agents: multi-step runs that call tools, hand off context, and fail by returning a confident, well-formed, wrong answer after one bad tool call.
 
-- **Step-level agent traces.** Show a whole run as a tree, every model call, tool call and retry, not a flat list of spans, so you can see where it went sideways.
-- **MCP tool-call visibility.** Model Context Protocol is becoming the standard way agents reach tools, and those calls are scattered across server logs today. Surface them as first-class spans: which tool, what arguments, what came back, how long, did it error.
-- **Evals that score a run, not just an answer.** Did the agent pick the right tool, in the right order, and stop when it should have? That's the eval question agents actually need, and nobody answers it in .NET.
+- **Step-level agent traces (shipped).** The trace view lays a run out as a tree, every model call, tool call and retry nested by parent, so you can see where it went sideways instead of reading a flat list.
+- **MCP tool-call visibility (shipped).** MCP calls come in as their own span kind with the tool name, the arguments, and the result, and the trace header shows the tool sequence in order.
+- **Evals that score a run, not just an answer (ahead).** Did the agent pick the right tool, in the right order, and stop when it should have? That needs a tool-running harness, not just a chat client, so it's the genuine next build. Nobody answers it in .NET.
 
 **Why it matters:** this is the layer the whole field is moving to, and almost every entrant is Python or Go. None of it is native to .NET. It's also the part I work with day to day (MCP servers, agent orchestration, fallback chains), so it's the most honest place for this project to go deep.
 
@@ -66,7 +68,6 @@ And there's a place to aim all of it. In the wider market this layer is crowded,
 - **Scheduled evals with alerting.** Run a set on its own (nightly, against a sample of real inputs) and notify on a drop, so a regression surfaces without anyone remembering to look. A live viewer needs you watching; this watches for you.
 - More scorers: JSON-schema for structured output, regex, embedding similarity.
 - Switch the .NET SDK to OTLP for uniformity with the other SDKs.
-- Latency percentiles (p50/p95).
 - A hosted team version with auth for shared dashboards. Stays optional; the tool stays local-first.
 
 ---

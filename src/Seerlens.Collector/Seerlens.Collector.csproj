@@ -41,4 +41,8 @@
     <ProjectReference Include="..\Seerlens.Evals\Seerlens.Evals.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Seerlens.Collector.Tests" />
+  </ItemGroup>
+
 </Project>

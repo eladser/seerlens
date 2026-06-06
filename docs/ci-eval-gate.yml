@@ -1,0 +1,40 @@
+# Example: gate a pull request on answer quality with Seerlens.
+# Copy this into .github/workflows/ in your own repo and adjust the set name.
+# It runs your golden set on every PR and fails the check if quality drops.
+
+name: eval gate
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+
+      - run: dotnet tool install -g Seerlens
+
+      # Point Seerlens at any OpenAI-compatible provider. Keep the key in
+      # repo secrets, never in the workflow file.
+      - name: run evals
+        env:
+          SEERLENS_AI_BASE_URL: https://api.openai.com/v1
+          SEERLENS_AI_KEY: ${{ secrets.SEERLENS_AI_KEY }}
+          SEERLENS_AI_MODEL: gpt-4o-mini
+        run: |
+          seerlens eval support \
+            --min 0.8 \
+            --baseline .seerlens/support.base \
+            --junit eval-results.xml
+
+      # Optional: surface per-case results in the PR's checks tab.
+      - name: publish results
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: eval-results.xml

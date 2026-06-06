@@ -201,6 +201,57 @@ public sealed class TraceStore
         return new Stats(r.GetInt32(0), r.GetDouble(1), r.GetDouble(2));
     }
 
+    // Spend rollups for the cost view. monthStart bounds month-to-date; daily
+    // covers the window from sinceMs to now, bucketed by day.
+    public Spend SpendReport(long monthStartMs, long sinceMs)
+    {
+        using var db = Open();
+
+        double mtd, total;
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = """
+                select coalesce(sum(case when started_at >= $month then cost_usd end), 0),
+                       coalesce(sum(cost_usd), 0)
+                from traces;
+                """;
+            Bind(cmd, "$month", monthStartMs);
+            using var r = cmd.ExecuteReader();
+            r.Read();
+            mtd = r.GetDouble(0);
+            total = r.GetDouble(1);
+        }
+
+        var byModel = new List<ModelSpend>();
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = """
+                select coalesce(model, 'unknown'), coalesce(sum(cost_usd), 0), count(*),
+                       coalesce(sum(coalesce(prompt_tokens,0) + coalesce(completion_tokens,0)), 0)
+                from traces group by model order by sum(cost_usd) desc;
+                """;
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                byModel.Add(new ModelSpend(r.GetString(0), r.GetDouble(1), r.GetInt32(2), r.GetInt64(3)));
+        }
+
+        var daily = new List<DaySpend>();
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = """
+                select date(started_at / 1000, 'unixepoch') as day, coalesce(sum(cost_usd), 0)
+                from traces where started_at >= $since
+                group by day order by day;
+                """;
+            Bind(cmd, "$since", sinceMs);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                daily.Add(new DaySpend(r.GetString(0), r.GetDouble(1)));
+        }
+
+        return new Spend(mtd, total, byModel, daily);
+    }
+
     static TraceSummary ReadSummary(SqliteDataReader r) => new(
         r.GetString(0), r.GetString(1), r.GetInt64(2), r.GetDouble(3),
         r.IsDBNull(4) ? null : r.GetString(4), r.IsDBNull(5) ? null : r.GetString(5),
