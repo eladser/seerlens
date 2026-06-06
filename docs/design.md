@@ -19,9 +19,13 @@ A developer building an AI feature, in the middle of the dev loop, who needs to 
 
 ## Positioning
 
-Existing tools (Langfuse, Arize Phoenix, Helicone) are **platforms you deploy**, multi-container, a cloud signup, a hosted team dashboard. Seerlens is **DevTools you run locally**, one command, no signup, no cloud. The wedge is the dev loop, not production monitoring.
+The honest landscape first, because it shapes the whole pitch. Language-agnostic LLM observability is crowded and well funded, and much of it is already local-first and open source. Promptfoo (MIT, runs locally, CI-integrated, 300k+ developers, now part of OpenAI) and Comet's Opik (open source, evals in CI) own the local eval story. Arize Phoenix is local-first and OTel-based. Langfuse and Helicone are the deploy-it platforms. Competing with that group on features, in their languages, is not a fight worth picking.
 
-This is honest: the language-agnostic LLM-observability space is not empty. Seerlens competes on the *local-first developer experience* and cross-language reach, and on demonstrating the author can build the hard parts (a trace pipeline + an eval engine) to a polished, standards-based state.
+Where the field thins to almost nothing is **.NET**. The .NET AI stack (Microsoft.Extensions.AI, Semantic Kernel, Aspire) gives you tracing, the Aspire dashboard even renders GenAI spans, but nothing in it judges answer quality or turns tokens into dollars. A .NET team that wants evals or cost today has two choices: bolt a Python tool onto a C# stack, or go without.
+
+That gap is the wedge and the identity. **Seerlens is the local-first AI eval, cost, and trace tool that's native to .NET.** It's built on the OpenTelemetry GenAI standard, so it still ingests from any language, but it's aimed first at the ecosystem that has no native option. The cross-language reach is range. The .NET-first focus is the point.
+
+For a portfolio the same framing is the honest one: the value here isn't commercial novelty, there's an OpenAI-owned competitor in the broad market. It's that the author can build a standards-based trace pipeline, an eval engine, and a clean local-first dev tool, end to end, in the ecosystem the author knows deepest.
 
 ## Core design decision
 
@@ -109,7 +113,7 @@ These come straight from the hiring research and are what make the repo read as 
 
 ## Risks and limitations
 
-- **Crowded space.** Mitigated by the local-first wedge and cross-language reach, and by the fact that portfolio value comes from build quality, not commercial novelty.
+- **Crowded space.** The language-agnostic side is saturated, including local-first open-source incumbents (Promptfoo, Opik, Phoenix). Seerlens doesn't try to beat them there. It aims at .NET, where there's no native eval or cost tool, and leans on build quality and the standards-based design as the portfolio signal, not commercial novelty.
 - **Eval demos as numbers.** Mitigated by rendering eval as score-over-time trends inside the trace UI, not a static table.
 - **Scope creep across languages.** Mitigated by phasing, .NET SDK first, others only after the core ships.
 - **OTel GenAI conventions are still evolving.** Mitigated by normalizing spans at ingest into an internal model, so a convention change is a one-place fix.

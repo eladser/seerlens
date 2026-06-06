@@ -10,6 +10,8 @@ DevTools for AI calls. One line of setup and a local dashboard shows every LLM c
 
 Think of it as the browser Network tab, pointed at your AI calls.
 
+Built .NET-first. It adds the two things the .NET AI stack doesn't give you, answer-quality evals and cost in dollars, and because it speaks OpenTelemetry, calls from Python, JavaScript or any other language land in the same dashboard.
+
 ![Seerlens demo](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/demo.gif)
 
 ## The problem

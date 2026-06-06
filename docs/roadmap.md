@@ -4,7 +4,9 @@ Seerlens does the core job today: see your AI calls (cost, speed, prompts, failu
 
 A note on direction, because it shapes everything below. Live trace viewing is turning into a commodity. The dashboards that ship with frameworks now show a GenAI call's prompt, response, tool calls and tokens for free, in your stack, during a debug session. Seerlens is not going to win by being one more live span viewer, and it won't try. Those tools are read-only mirrors of telemetry: they show you what happened in the moment and then forget it. They don't judge whether the answer was any good, they don't turn tokens into a budget you can act on, and they can't fail your build when quality drops.
 
-That last part is the whole opening. Seerlens moves up the stack, from watching calls to **judging them, costing them, and catching regressions before they ship, with history that outlives a single run.** Tracing is the on-ramp. Evals and cost are the product. The next releases lean into both, for that reason. Depth over breadth, and each release ships on its own.
+That last part is the whole opening. Seerlens moves up the stack, from watching calls to **judging them, costing them, and catching regressions before they ship, with history that outlives a single run.** Tracing is the on-ramp. Evals and cost are the product.
+
+And there's a place to aim all of it. In the wider market this layer is crowded, but in .NET it's empty: the .NET AI stack traces calls and stops there, no quality scoring, no cost in dollars. So Seerlens leads **.NET-first**, evals and cost native to the ecosystem that has no other option, while OTLP ingest keeps the door open to any language. That's the identity the rest of this roadmap serves. Depth over breadth, and each release ships on its own.
 
 ## v0.3: Evals in CI
 
@@ -48,14 +50,15 @@ That last part is the whole opening. Seerlens moves up the stack, from watching 
 
 **Why it matters:** counting tokens is table stakes, and the built-in viewers already do it. Counting dollars, with a line you don't want to cross and a heads-up when you approach it, is the part teams actually act on and the part a token-counter leaves on the floor. Persistence is what makes this possible at all, which is the same reason the eval trend works and a live viewer's in-memory log doesn't.
 
-## v0.7: One more language
+## v0.7 and beyond: agents and MCP
 
-**Goal:** prove "any language" with a third SDK people actually run.
+**Goal:** follow where the failures are actually moving. A single LLM call is the easy case. The hard, current case is agents: multi-step runs that call tools, hand off context, and fail by returning a confident, well-formed, wrong answer after one bad tool call.
 
-- A **Go SDK**, tested end to end like the Python and JS ones. Go is the lingua franca of cloud and AI infrastructure (the OpenTelemetry collector itself is written in Go), so it broadens the audience and shows systems range. Java is the alternative if the goal is the enterprise and Spring AI crowd instead.
-- Publish it to its registry (`go get`) alongside the ones already shipping: .NET on NuGet, Python on PyPI, JS on npm.
+- **Step-level agent traces.** Show a whole run as a tree, every model call, tool call and retry, not a flat list of spans, so you can see where it went sideways.
+- **MCP tool-call visibility.** Model Context Protocol is becoming the standard way agents reach tools, and those calls are scattered across server logs today. Surface them as first-class spans: which tool, what arguments, what came back, how long, did it error.
+- **Evals that score a run, not just an answer.** Did the agent pick the right tool, in the right order, and stop when it should have? That's the eval question agents actually need, and nobody answers it in .NET.
 
-**Why it matters:** three tested SDKs across .NET, a scripting language, and a systems language, with one-command installs everywhere, turns the cross-language story from claimed into concrete.
+**Why it matters:** this is the layer the whole field is moving to, and almost every entrant is Python or Go. None of it is native to .NET. It's also the part I work with day to day (MCP servers, agent orchestration, fallback chains), so it's the most honest place for this project to go deep.
 
 ## Later (backlog, not scheduled)
 
