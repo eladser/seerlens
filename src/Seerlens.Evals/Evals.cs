@@ -2,9 +2,21 @@ using System.Text.Json;
 
 namespace Seerlens.Evals;
 
+// A tool the agent eval offers the model. Result is the canned value returned when
+// the model calls it, so a run is deterministic without hitting real systems.
+public record AgentTool(string Name, string Description, string Result);
+
 // One question in a golden set. Keywords drive the offline scorer; criteria is the
-// rubric handed to an LLM judge when one is configured.
-public record GoldenCase(string Id, string Input, string[]? Keywords = null, string? Criteria = null);
+// rubric handed to an LLM judge. Tools and ExpectedTools drive the agent eval: the
+// model gets Tools to call, and the run is scored on whether it called ExpectedTools
+// in order.
+public record GoldenCase(
+    string Id,
+    string Input,
+    string[]? Keywords = null,
+    string? Criteria = null,
+    AgentTool[]? Tools = null,
+    string[]? ExpectedTools = null);
 
 public record GoldenSet(string Name, IReadOnlyList<GoldenCase> Cases)
 {

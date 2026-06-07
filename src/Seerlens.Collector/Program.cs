@@ -127,8 +127,19 @@ app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, 
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
 
     var prev = evals.List(req.Set).LastOrDefault();   // most recent run before this one
-    IScorer scorer = req.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
-    var run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
+
+    // "agent" runs the model with the case's tools and scores the tool sequence;
+    // the others score a single answer.
+    Seerlens.Evals.EvalRun run;
+    if (req.Scorer == "agent")
+    {
+        run = await new AgentRunner(ai.Client!).Run(set, ai.Model);
+    }
+    else
+    {
+        IScorer scorer = req.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
+        run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
+    }
     var summary = evals.Add(ToEvalRunIn(run));
 
     if (prev is not null && prev.Score - run.Score > settings.GetAlerts().RegressionDrop)

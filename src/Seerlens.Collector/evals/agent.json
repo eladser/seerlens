@@ -1,0 +1,22 @@
+{
+  "name": "agent",
+  "cases": [
+    {
+      "id": "refund-policy",
+      "input": "Find our refund policy and tell me the window in days.",
+      "tools": [
+        { "name": "search_docs", "description": "Search the documentation by query", "result": "3 matches: refunds.md, terms.md, faq.md" },
+        { "name": "read_file", "description": "Read a document by path", "result": "Refunds are accepted within 30 days of purchase." }
+      ],
+      "expectedTools": ["search_docs", "read_file"]
+    },
+    {
+      "id": "order-status",
+      "input": "Where is order 5521 and when does it arrive?",
+      "tools": [
+        { "name": "lookupOrder", "description": "Look up an order by its id", "result": "{\"status\":\"shipped\",\"eta\":\"Thursday\"}" }
+      ],
+      "expectedTools": ["lookupOrder"]
+    }
+  ]
+}

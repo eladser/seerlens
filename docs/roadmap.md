@@ -19,11 +19,12 @@ The 0.3 through 0.7 plan all landed:
 - **Agent and MCP runs** as a step tree, with recorded-run tool-sequence scoring.
 - **Webhook alerts** on regression and over-budget, **JSON export**, and all three SDKs (.NET, Python, JS) unified on OTLP.
 
+## Shipped in 1.1
+
+- **Score agents by running them.** Beyond scoring a recorded trace, the eval now produces the run: a case declares its tools, the model gets them and is left to call them, and the run is scored on whether it called the expected tools in order. Tools return canned results from the golden set, so a run is repeatable and never touches a real system. Runs from the dashboard or the CLI (`--scorer agent`), so you can gate CI on tool behavior, not just answer text.
+- **Current model pricing.** The price table and provider detection now cover the 2026 lineup: OpenAI (GPT-5.x, o-series), Anthropic (Claude 4 family), Google (Gemini 2.5), xAI (Grok 4), DeepSeek, and Llama on Groq. Anything missing is one line in a `SEERLENS_PRICING_FILE`.
+
 ## What's next
-
-### 1.1: Score agents by running them
-
-The recorded-run scorer answers "did this trace use the right tools, in order?" The missing half is producing the run. Give an eval a set of tools, run a tool-capable agent on each golden case, and score the tool calls it actually makes, plus the cost and latency of the whole run. That closes the agent-eval loop end to end, and nobody offers it in .NET. This is the genuine next build and the highest hiring signal left.
 
 ### 1.2: Judging you can trust
 

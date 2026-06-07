@@ -2,6 +2,11 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.1.0 - 06-07
+
+- Agent evals: a third scorer, `agent`, that gives the model a case's tools, lets it call them (canned results from the golden set), and scores the call sequence against what you expected. Runs from the Evals tab or the CLI (`--scorer agent`), so you can gate CI on tool behavior.
+- Refreshed model pricing and provider detection to the current lineup: OpenAI GPT-5.x and o-series, Anthropic Claude 4 family, Google Gemini 2.5, xAI Grok 4, DeepSeek, and Llama on Groq. Anything missing is one line in a `SEERLENS_PRICING_FILE`.
+
 ## 1.0.0 - 06-06
 
 First stable release. Went from a local trace and eval viewer to a tool you can gate builds on.
