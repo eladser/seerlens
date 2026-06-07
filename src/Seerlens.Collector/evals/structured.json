@@ -1,0 +1,15 @@
+{
+  "name": "structured",
+  "cases": [
+    {
+      "id": "user-object",
+      "input": "Return a JSON object for a user named Ada Lovelace, age 36. Use the fields name (string) and age (number). Reply with only JSON.",
+      "schema": "{\"type\":\"object\",\"required\":[\"name\",\"age\"],\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"number\"}}}"
+    },
+    {
+      "id": "tags-array",
+      "input": "Give me a JSON array of three string tags for a blog post about databases. Reply with only JSON.",
+      "schema": "{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"minItems\":3}"
+    }
+  ]
+}

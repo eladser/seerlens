@@ -24,13 +24,17 @@ The 0.3 through 0.7 plan all landed:
 - **Score agents by running them.** Beyond scoring a recorded trace, the eval now produces the run: a case declares its tools, the model gets them and is left to call them, and the run is scored on whether it called the expected tools in order. Tools return canned results from the golden set, so a run is repeatable and never touches a real system. Runs from the dashboard or the CLI (`--scorer agent`), so you can gate CI on tool behavior, not just answer text.
 - **Current model pricing.** The price table and provider detection now cover the 2026 lineup: OpenAI (GPT-5.x, o-series), Anthropic (Claude 4 family), Google (Gemini 2.5), xAI (Grok 4), DeepSeek, and Llama on Groq. Anything missing is one line in a `SEERLENS_PRICING_FILE`.
 
+## Shipped in 1.2
+
+- **Rubric judging.** The judge scores each criterion in a case's rubric on its own and averages them, a more defensible number than one holistic verdict.
+- **More scorers.** A `regex` scorer (fraction of patterns matched, offline) and a `json-schema` scorer (the answer must parse as JSON and validate against a schema, for structured output), alongside keyword, llm-judge and agent.
+- **.NET 10.** Moved the whole stack to .NET 10. The published dotnet tool now needs the .NET 10 runtime.
+
 ## What's next
 
-### 1.2: Judging you can trust
+### Judging, continued
 
-Gating a build on a number is only as good as the number. Rubric-based judging that scores each criterion instead of one blunt verdict, an optional second judge for consensus, and more scorers: JSON-schema for structured output, regex, and embedding similarity. A judge has to be defensible before you fail a build on it.
-
-Also in 1.2, a platform refresh: move to **.NET 10** and bump the `Microsoft.Extensions.AI` and `Microsoft.Data.Sqlite` packages. The framework and the AI libraries move fast, net9 with 10.6 is already a step behind, so this is its own branch with a full test pass rather than a drive-by.
+The rest of trustworthy judging: a consensus mode that runs more than one judge and flags disagreement, and an embedding-similarity scorer (cosine distance to a reference answer), which needs an embeddings provider since the eval provider may not offer one.
 
 ### 1.3: Scheduled evals
 
