@@ -11,7 +11,7 @@ var client = new DemoChatClient().UseSeerlens();
 // A few standalone calls across different models.
 await Ask(client, "gpt-4o", "What's the capital of France?");
 await Ask(client, "gpt-4o-mini", "Summarize the Q3 board update in one line.");
-await Ask(client, "claude-3-5-sonnet", "Draft a reply to an unhappy customer.");
+await Ask(client, "claude-sonnet-4-6", "Draft a reply to an unhappy customer.");
 await Ask(client, "gpt-4o-mini", "Find docs about refund policy.");
 
 // A streaming call. It's recorded as one span once the stream finishes.
