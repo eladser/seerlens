@@ -30,6 +30,8 @@ The 0.3 through 0.7 plan all landed:
 
 Gating a build on a number is only as good as the number. Rubric-based judging that scores each criterion instead of one blunt verdict, an optional second judge for consensus, and more scorers: JSON-schema for structured output, regex, and embedding similarity. A judge has to be defensible before you fail a build on it.
 
+Also in 1.2, a platform refresh: move to **.NET 10** and bump the `Microsoft.Extensions.AI` and `Microsoft.Data.Sqlite` packages. The framework and the AI libraries move fast, net9 with 10.6 is already a step behind, so this is its own branch with a full test pass rather than a drive-by.
+
 ### 1.3: Scheduled evals
 
 Run a set on its own, nightly against a sample of real inputs, and fire the existing webhook on a drop. Regressions should surface without anyone remembering to look.
