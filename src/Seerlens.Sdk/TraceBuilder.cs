@@ -48,9 +48,11 @@ static class Providers
     public static string? For(string model)
     {
         var m = model.ToLowerInvariant();
-        if (m.StartsWith("gpt") || m.StartsWith("o1") || m.StartsWith("o3")) return "openai";
+        if (m.StartsWith("gpt") || m.StartsWith("o1") || m.StartsWith("o3") || m.StartsWith("o4")) return "openai";
         if (m.Contains("claude")) return "anthropic";
         if (m.Contains("gemini")) return "google";
+        if (m.Contains("grok")) return "xai";
+        if (m.Contains("deepseek")) return "deepseek";
         if (m.Contains("mistral") || m.Contains("mixtral")) return "mistral";
         if (m.Contains("llama")) return "meta";
         return null;

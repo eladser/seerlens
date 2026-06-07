@@ -6,7 +6,7 @@ import type { EvalRun, EvalRunDetail } from '../types'
 import { SetEditor } from './SetEditor'
 import { TrendChart } from './TrendChart'
 
-type Scorer = 'keyword' | 'llm-judge'
+type Scorer = 'keyword' | 'llm-judge' | 'agent'
 type Editing = { name: string | null } | null
 
 export function EvalsView() {
@@ -90,7 +90,7 @@ export function EvalsView() {
         </select>
 
         <div className="scorer-toggle">
-          {(['keyword', 'llm-judge'] as Scorer[]).map(s => (
+          {(['keyword', 'llm-judge', 'agent'] as Scorer[]).map(s => (
             <button key={s} className={scorer === s ? 'on' : ''} onClick={() => setScorer(s)}>{s}</button>
           ))}
         </div>

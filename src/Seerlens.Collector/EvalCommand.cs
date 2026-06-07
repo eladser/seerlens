@@ -49,11 +49,15 @@ static class EvalCommand
             return 2;
         }
 
-        IScorer scorer = opt.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
         if (!opt.Quiet)
-            Console.WriteLine($"Running '{set.Name}' ({set.Cases.Count} cases) through {ai.Model}, scoring by {scorer.Name}...\n");
+            Console.WriteLine($"Running '{set.Name}' ({set.Cases.Count} cases) through {ai.Model}, scoring by {opt.Scorer}...\n");
 
-        var run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
+        // "agent" gives the model the case's tools and scores the calls it makes;
+        // the others score a single answer.
+        var run = opt.Scorer == "agent"
+            ? await new AgentRunner(ai.Client!).Run(set, ai.Model)
+            : await new EvalRunner(ai.Client!,
+                opt.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer()).Run(set, ai.Model);
         if (!opt.Quiet)
             PrintTable(run);
 
@@ -208,7 +212,7 @@ static class EvalCommand
           --baseline <path>     fail if the score dropped too far below a saved baseline
           --tolerance <0..1>    allowed drop versus the baseline (default 0.05)
           --save-baseline <p>   write this run's score as the baseline at <p>
-          --scorer <name>       keyword (default) or llm-judge
+          --scorer <name>       keyword (default), llm-judge, or agent (runs tools, scores the sequence)
           --model <name>        override SEERLENS_AI_MODEL for this run
           --json <path>         write the full run as JSON
           --junit <path>        write JUnit XML for CI test reporters
@@ -258,8 +262,8 @@ static class EvalCommand
                 }
                 if (o.Error is not null) break;
             }
-            if (o.Scorer is not ("keyword" or "llm-judge"))
-                o.Error = $"--scorer must be keyword or llm-judge, got '{o.Scorer}'";
+            if (o.Scorer is not ("keyword" or "llm-judge" or "agent"))
+                o.Error = $"--scorer must be keyword, llm-judge or agent, got '{o.Scorer}'";
             return o;
         }
 

@@ -24,13 +24,13 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 
 - **Live trace feed.** Calls show up the moment they happen.
 - **A timeline per trace.** LLM calls and tool calls laid out on a real time ruler, so you can see what ran when and what was slow.
-- **Cost, tokens, latency** per call and per trace, plus a spend breakdown by provider and model, priced across the common OpenAI, Anthropic, and Google models.
+- **Cost, tokens, latency** per call and per trace, plus a spend breakdown by provider and model, priced across the current OpenAI, Anthropic, Google, xAI, and DeepSeek lineups (and overridable for anything else).
 - **The actual prompt and completion**, not a summary.
 - **Failures, captured.** A call that throws is recorded with its error, so you can see what broke.
 - **Eval trends.** Score a golden set against your prompts and watch the number over time, so a model swap that drops quality shows up as a line heading down, not a surprise in production.
 - **Model comparison.** Run one golden set across several models (and an optional system prompt) and see quality, cost, and latency side by side.
 - **Cost control.** Set a monthly budget and get warned when you cross it, with spend broken down by model and by day.
-- **Agent and MCP runs.** A run shows as a step tree, MCP tool calls show their arguments and result, and you can score whether the agent used the tools you expected, in order.
+- **Agent and MCP runs.** A run shows as a step tree, and MCP tool calls show their arguments and result. Score whether an agent used the right tools two ways: against a recorded trace, or by actually running the model with a set of tools and grading the calls it makes.
 - **Alerts and export.** Point a webhook at regressions and over-budget spend, and export any trace or eval run as JSON.
 
 ![Failed call](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/error-trace.png)
@@ -139,9 +139,26 @@ SEERLENS_AI_KEY=...
 SEERLENS_AI_MODEL=llama-3.3-70b-versatile
 ```
 
-Then pick the set in the **Evals** tab and hit Run. Both scorers send each question to the model to get an answer. **keyword** checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against the criteria. The run lands on the trend.
+Then pick the set in the **Evals** tab and hit Run. **keyword** checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against the criteria. The run lands on the trend.
 
 ![Run an eval from the dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-run.png)
+
+### Scoring agents
+
+There's a third scorer, **agent**, for when the thing you care about is whether the model reaches for the right tools. A case declares the tools it may call and the sequence you expect:
+
+```json
+{
+  "input": "Find our refund policy and tell me the window in days.",
+  "tools": [
+    { "name": "search_docs", "description": "Search the docs", "result": "3 matches: refunds.md, terms.md" },
+    { "name": "read_file", "description": "Read a doc", "result": "Refunds within 30 days." }
+  ],
+  "expectedTools": ["search_docs", "read_file"]
+}
+```
+
+The agent scorer gives the model those tools and lets it call them (the `result` is returned, so nothing real is touched), then scores the calls it actually made against `expectedTools`, in order. So "right answer, wrong tool path" shows up as a lower score. Run it from the Evals tab or the CLI with `--scorer agent`.
 
 ### In CI
 
@@ -224,16 +241,16 @@ What this doesn't do, since the tradeoffs were deliberate:
 - **Cost depends on a pricing table.** Tokens become dollars from a per-model price list, so a brand-new model or a price change needs the table updated or the cost reads as zero. You can point `SEERLENS_PRICING_FILE` at a JSON to override prices, but token counts are always right while the dollar figure is only as fresh as the table.
 - **LLM-judge scoring costs money and isn't perfectly repeatable.** The judge is itself a model call, so it adds latency and spend, and two runs can disagree at the margin. The keyword scorer is deterministic but blunt. Pick the one that fits what you're checking.
 - **"Any language" is verified for three.** .NET, Python and JavaScript are tested end to end and all emit OTLP GenAI spans. Anything else emitting the same should work, I just haven't proven each one.
-- **Agent scoring works on recorded runs, not live ones.** You can score whether a trace used the expected tools in the right order, but Seerlens doesn't yet run an agent with tools itself to produce that trace. Scoring a live tool-calling run is the next direction (see the roadmap).
+- **Agent scoring uses declared tools with canned results.** You can run the model with a case's tools and score the calls it makes, but those tools return the fixed results you put in the golden set. Seerlens doesn't execute your real tools or connect to a live MCP server, and the run needs a provider that supports tool calling.
 
 ## Status and what's next
 
-1.0 is out and stable. Install it as a dotnet tool, from NuGet, PyPI, or npm, or run the Docker image. Everything above is what ships today.
+Stable, and installable as a dotnet tool, from NuGet, PyPI, or npm, or via Docker. Everything above is what ships today.
 
 What's next, with the full plan in the [roadmap](docs/roadmap.md):
 
-- **Score agents by running them.** Give an eval real tools, run a tool-capable agent on each case, and grade the calls it actually makes, not just a recorded trace.
 - **Judging you can trust.** Rubric-based scoring and more scorer types (JSON-schema, regex, embedding similarity), so the number you gate a build on holds up.
+- **Scheduled evals.** Run a set nightly against a sample and fire the webhook on a drop.
 - **Deeper in .NET.** A DI / ASP.NET setup extension and a Semantic Kernel filter that traces agents with no extra code.
 
 ## Docs

@@ -3,7 +3,7 @@
 *DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
 
-**Status (v1.0.0):** Tracing with .NET, Python, and JavaScript SDKs, all on OTLP. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), model and prompt comparison, cost with a budget and alerts, agent and MCP step trees with recorded-run tool scoring, JSON export, and a webhook for regressions and over-budget spend. What's next is in the [roadmap](roadmap.md): running an agent with tools to score live, and rubric-based judging.
+**Status (1.1):** Tracing with .NET, Python, and JavaScript SDKs, all on OTLP. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), model and prompt comparison, cost with a budget and alerts priced on the current model lineup, agent and MCP step trees, agent tool scoring both on recorded runs and by running the model with tools, JSON export, and a webhook for regressions and over-budget spend. What's next is in the [roadmap](roadmap.md): rubric-based judging and scheduled evals.
 
 ## Pitch
 

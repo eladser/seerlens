@@ -31,7 +31,7 @@ seerlens eval <set> [options]
 | `--baseline <path>` | Fail if the score dropped too far below a saved baseline. |
 | `--tolerance <0..1>` | Allowed drop versus the baseline (default 0.05). |
 | `--save-baseline <path>` | Write this run's score as the baseline at `<path>`. |
-| `--scorer <name>` | `keyword` (default) or `llm-judge`. |
+| `--scorer <name>` | `keyword` (default), `llm-judge`, or `agent` (run the case's tools, score the call sequence). |
 | `--model <name>` | Override `SEERLENS_AI_MODEL` for this run. |
 | `--json <path>` | Write the full run as JSON. |
 | `--junit <path>` | Write JUnit XML for CI test reporters. |
@@ -39,6 +39,18 @@ seerlens eval <set> [options]
 | `--quiet` | Print only the verdict, not the per-case table. |
 
 Exit codes: `0` pass, `1` below the floor or a regression, `2` usage or config error.
+
+## Golden set format
+
+A set is `{ "name": "...", "cases": [ ... ] }`. Each case:
+
+| Field | Used by | Meaning |
+|---|---|---|
+| `input` | all | The question or task. |
+| `keywords` | keyword scorer | Terms a good answer must contain. |
+| `criteria` | llm-judge scorer | Plain-English rubric the judge grades against. |
+| `tools` | agent scorer | Tools the model may call: `{ name, description, result }`. `result` is the canned value returned when called. |
+| `expectedTools` | agent scorer | The tool names you expect, in order. The run is scored on the in-order match. |
 
 ## HTTP API
 
