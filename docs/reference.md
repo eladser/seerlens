@@ -31,7 +31,7 @@ seerlens eval <set> [options]
 | `--baseline <path>` | Fail if the score dropped too far below a saved baseline. |
 | `--tolerance <0..1>` | Allowed drop versus the baseline (default 0.05). |
 | `--save-baseline <path>` | Write this run's score as the baseline at `<path>`. |
-| `--scorer <name>` | `keyword` (default), `llm-judge`, or `agent` (run the case's tools, score the call sequence). |
+| `--scorer <name>` | `keyword` (default), `llm-judge`, `rubric`, `regex`, `json-schema`, or `agent`. |
 | `--model <name>` | Override `SEERLENS_AI_MODEL` for this run. |
 | `--json <path>` | Write the full run as JSON. |
 | `--junit <path>` | Write JUnit XML for CI test reporters. |
@@ -49,6 +49,9 @@ A set is `{ "name": "...", "cases": [ ... ] }`. Each case:
 | `input` | all | The question or task. |
 | `keywords` | keyword scorer | Terms a good answer must contain. |
 | `criteria` | llm-judge scorer | Plain-English rubric the judge grades against. |
+| `rubric` | rubric scorer | A list of criteria, each scored 0..1 by the judge and then averaged. |
+| `patterns` | regex scorer | Regex patterns a good answer must match. Score is the fraction matched. |
+| `schema` | json-schema scorer | A JSON Schema (as a string) the answer, parsed as JSON, must validate against. |
 | `tools` | agent scorer | Tools the model may call: `{ name, description, result }`. `result` is the canned value returned when called. |
 | `expectedTools` | agent scorer | The tool names you expect, in order. The run is scored on the in-order match. |
 

@@ -16,7 +16,10 @@ public record GoldenCase(
     string[]? Keywords = null,
     string? Criteria = null,
     AgentTool[]? Tools = null,
-    string[]? ExpectedTools = null);
+    string[]? ExpectedTools = null,
+    string[]? Rubric = null,      // criteria scored one by one by the rubric judge
+    string[]? Patterns = null,    // regex patterns a good answer must match
+    string? Schema = null);       // a JSON Schema the answer (as JSON) must validate against
 
 public record GoldenSet(string Name, IReadOnlyList<GoldenCase> Cases)
 {

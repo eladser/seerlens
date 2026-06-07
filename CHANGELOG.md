@@ -2,6 +2,12 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.2.0 - 06-07
+
+- Rubric judging: the `rubric` scorer grades each criterion in a case's rubric on its own and averages them, instead of one holistic verdict.
+- Two more scorers: `regex` (fraction of patterns matched, offline) and `json-schema` (the answer must parse as JSON and validate against a schema, for structured output). Available from the Evals tab and the CLI (`--scorer`).
+- Moved to .NET 10. The `Seerlens` dotnet tool now requires the .NET 10 runtime (or use a self-contained binary). The `Seerlens.Sdk` package multi-targets net8.0/net9.0/net10.0, so apps on .NET 8, 9, or 10 can all use it. Older releases (1.1.0 and earlier) stay available for anyone on .NET 9.
+
 ## 1.1.0 - 06-07
 
 - Agent evals: a third scorer, `agent`, that gives the model a case's tools, lets it call them (canned results from the golden set), and scores the call sequence against what you expected. Runs from the Evals tab or the CLI (`--scorer agent`), so you can gate CI on tool behavior.

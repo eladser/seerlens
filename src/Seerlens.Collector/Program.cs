@@ -125,6 +125,8 @@ app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, 
         return Results.BadRequest(new { error = "no provider configured; set SEERLENS_AI_BASE_URL/KEY/MODEL" });
     if (sets.Get(req.Set) is not { } set)
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
+    if (!string.IsNullOrEmpty(req.Scorer) && !Scoring.IsKnown(req.Scorer))
+        return Results.BadRequest(new { error = $"unknown scorer: {req.Scorer}" });
 
     var prev = evals.List(req.Set).LastOrDefault();   // most recent run before this one
 
@@ -137,8 +139,7 @@ app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, 
     }
     else
     {
-        IScorer scorer = req.Scorer == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
-        run = await new EvalRunner(ai.Client!, scorer).Run(set, ai.Model);
+        run = await new EvalRunner(ai.Client!, Scoring.For(req.Scorer, ai.Client!)).Run(set, ai.Model);
     }
     var summary = evals.Add(ToEvalRunIn(run));
 

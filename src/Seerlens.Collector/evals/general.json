@@ -5,25 +5,33 @@
       "id": "capital",
       "input": "What is the capital of France? Answer in one word.",
       "keywords": ["Paris"],
-      "criteria": "names Paris as the capital"
+      "criteria": "names Paris as the capital",
+      "rubric": ["names Paris", "answers in a single word"],
+      "patterns": ["\\bParis\\b"]
     },
     {
       "id": "math",
       "input": "What is 17 + 25? Reply with just the number.",
       "keywords": ["42"],
-      "criteria": "the answer is 42"
+      "criteria": "the answer is 42",
+      "rubric": ["the answer is 42", "replies with just the number"],
+      "patterns": ["\\b42\\b"]
     },
     {
       "id": "water",
       "input": "What is the chemical formula for water?",
       "keywords": ["H2O", "H₂O"],
-      "criteria": "states the formula is H2O"
+      "criteria": "states the formula is H2O",
+      "rubric": ["states the formula is H2O"],
+      "patterns": ["H2O|H₂O"]
     },
     {
       "id": "planet",
       "input": "Which planet is known as the Red Planet?",
       "keywords": ["Mars"],
-      "criteria": "names Mars"
+      "criteria": "names Mars",
+      "rubric": ["names Mars"],
+      "patterns": ["\\bMars\\b"]
     }
   ]
 }

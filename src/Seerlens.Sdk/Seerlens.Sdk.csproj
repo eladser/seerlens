@@ -1,14 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- The SDK is a library, so it targets a range: apps on .NET 8/9/10 can all use it.
+         Only the collector tool requires the .NET 10 runtime. -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup>
     <PackageId>Seerlens.Sdk</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Authors>Elad Sertshuk</Authors>
     <Description>Send your .NET app's LLM calls to Seerlens. Wrap any IChatClient with .UseSeerlens() and see every call in a local dashboard.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>

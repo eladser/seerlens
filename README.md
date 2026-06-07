@@ -46,6 +46,8 @@ seerlens
 
 That serves the dashboard at http://localhost:5005.
 
+The tool needs the **.NET 10 runtime**. No .NET installed? Grab a self-contained `seerlens-*.zip` from the [releases](https://github.com/eladser/seerlens/releases), it bundles everything. The `Seerlens.Sdk` package is separate and works on **.NET 8, 9, and 10**, so wrapping your app doesn't force you onto .NET 10.
+
 Then point your app at it. In .NET, wrap the `IChatClient` you already use:
 
 ```csharp
@@ -139,7 +141,14 @@ SEERLENS_AI_KEY=...
 SEERLENS_AI_MODEL=llama-3.3-70b-versatile
 ```
 
-Then pick the set in the **Evals** tab and hit Run. **keyword** checks the answer for the expected terms (no extra calls); **llm-judge** asks the model to grade the answer against the criteria. The run lands on the trend.
+Then pick the set in the **Evals** tab and hit Run. The run lands on the trend. There are a few scorers, so you can match the check to what you actually care about:
+
+- **keyword** checks the answer for the expected terms. Offline, no extra calls.
+- **llm-judge** asks the model for one 0..1 grade against the case's `criteria`.
+- **rubric** asks the judge to score each criterion in the case's `rubric` separately, then averages, a more defensible number than one holistic verdict.
+- **regex** scores the fraction of the case's `patterns` the answer matches. Offline.
+- **json-schema** is 1 if the answer parses as JSON and validates against the case's `schema`, for structured-output checks. Offline.
+- **agent** runs the model with the case's tools and scores the call sequence (see below).
 
 ![Run an eval from the dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-run.png)
 
