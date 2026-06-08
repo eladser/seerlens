@@ -1,7 +1,8 @@
 # Builds everything shippable into dist/:
-#   - Seerlens.nupkg          the `seerlens` dotnet tool
-#   - Seerlens.Sdk.nupkg      the .NET SDK
-#   - seerlens-<rid>.zip      self-contained builds for people without .NET
+#   - Seerlens.nupkg                the `seerlens` dotnet tool
+#   - Seerlens.Sdk.nupkg            the .NET SDK
+#   - Seerlens.SemanticKernel.nupkg the Semantic Kernel tracing filter
+#   - seerlens-<rid>.zip            self-contained builds for people without .NET
 #
 # Usage: pwsh build/pack.ps1
 
@@ -20,6 +21,7 @@ New-Item -ItemType Directory dist | Out-Null
 
 Write-Host "packing nuget packages..."
 dotnet pack src/Seerlens.Sdk -c Release -o dist
+dotnet pack src/Seerlens.SemanticKernel -c Release -o dist
 dotnet pack src/Seerlens.Collector -c Release -o dist
 
 foreach ($rid in 'win-x64', 'linux-x64', 'osx-arm64') {

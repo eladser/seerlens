@@ -40,6 +40,15 @@ public static class SeerlensTrace
 
     public static ToolSpan Mcp(string name, string? arguments = null) => Tool(name, arguments, "mcp");
 
+    // Record an already-finished step. Lands in the current trace if one is open,
+    // otherwise becomes a trace of its own. This is the hook integrations (like the
+    // Semantic Kernel filter) use to report a call they timed themselves.
+    public static void AddSpan(string name, string kind, double durationMs, string? model = null,
+        long? promptTokens = null, long? completionTokens = null,
+        string? input = null, string? output = null, string? error = null)
+        => Record(new SpanPayload(Guid.NewGuid().ToString("N"), null, name, kind,
+            TraceBuilder.Now(), durationMs, model, promptTokens, completionTokens, input, output, error));
+
     internal static TraceBuilder? Current => _current.Value;
 
     internal static void Record(SpanPayload span)

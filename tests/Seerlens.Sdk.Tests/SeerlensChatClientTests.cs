@@ -73,6 +73,23 @@ public class SeerlensChatClientTests
     }
 
     [Fact]
+    public void AddSpan_lands_in_the_current_trace()
+    {
+        var sink = new CapturingSink();
+        SeerlensTrace.UseSink(sink);
+
+        using (SeerlensTrace.Begin("sk run"))
+            SeerlensTrace.AddSpan("capitalLookup", "llm", 12.0, "gpt-4o", 47, 3, "country=France", "Paris");
+
+        var trace = Assert.Single(sink.Traces);
+        var span = Assert.Single(trace.Spans);
+        Assert.Equal("capitalLookup", span.Name);
+        Assert.Equal("llm", span.Kind);
+        Assert.Equal("gpt-4o", span.Model);
+        Assert.Equal(47, span.PromptTokens);
+    }
+
+    [Fact]
     public void Otlp_export_emits_root_genai_and_mcp_spans()
     {
         var trace = new TracePayload("t1", "research agent", 1000, 300, "openai", "gpt-4o", "ok",

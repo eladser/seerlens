@@ -32,6 +32,7 @@ The tools that answer this (Langfuse, Arize Phoenix, Helicone) are platforms you
 - **Cost control.** Set a monthly budget and get warned when you cross it, with spend broken down by model and by day.
 - **Agent and MCP runs.** A run shows as a step tree, and MCP tool calls show their arguments and result. Score whether an agent used the right tools two ways: against a recorded trace, or by actually running the model with a set of tools and grading the calls it makes.
 - **Alerts and export.** Point a webhook at regressions and over-budget spend, and export any trace or eval run as JSON.
+- **Semantic Kernel, automatically.** One line on the kernel builder and every SK function, prompt or tool, traces itself, no instrumentation in your code.
 
 ![Failed call](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/error-trace.png)
 
@@ -77,11 +78,39 @@ The tool and MCP calls show up as steps in the trace, with their arguments and r
 
 The SDK ships traces on a background queue. If the collector is down or busy, traces are dropped and your app keeps running. Instrumentation never blocks or throws into your code.
 
+### Semantic Kernel
+
+Using [Semantic Kernel](https://github.com/microsoft/semantic-kernel)? Add one line and every function the kernel runs, prompt calls, native tool calls, the whole agent flow, shows up in Seerlens automatically, with no `SeerlensTrace` calls in your code:
+
+```bash
+dotnet add package Seerlens.SemanticKernel
+```
+
+```csharp
+using Seerlens.SemanticKernel;
+
+var builder = Kernel.CreateBuilder();
+builder.AddOpenAIChatCompletion(model, client);
+builder.AddSeerlens("http://localhost:5005");   // the whole integration
+var kernel = builder.Build();
+```
+
+Each function becomes a span (model calls priced with tokens and cost, native functions as tool calls), grouped per invocation. Runnable example in [samples/SkSample](samples/SkSample).
+
+### Wiring it through DI
+
+In an ASP.NET app, configure Seerlens once and wrap the chat client in your pipeline:
+
+```csharp
+builder.Services.AddSeerlens("http://localhost:5005");
+builder.Services.AddChatClient(/* ... */).Use(c => c.UseSeerlens());
+```
+
 ### Other ways to run it
 
 - **Docker:** `docker build -t seerlens . && docker run -p 127.0.0.1:5005:5005 seerlens`
 - **No .NET installed?** Grab a self-contained build (`seerlens-win-x64.zip`, `linux-x64`, `osx-arm64`) from the [releases](https://github.com/eladser/seerlens/releases) and run the `seerlens` binary inside.
-- **SDK on NuGet:** `dotnet add package Seerlens.Sdk`.
+- **SDK on NuGet:** `dotnet add package Seerlens.Sdk` (or `Seerlens.SemanticKernel` for the SK filter).
 
 The collector has no auth, by design: it binds `localhost` and the Docker example publishes only to `127.0.0.1`. It's a local dev tool. If you put it on a shared host or a network, gate it yourself, the captured prompts and your provider key are worth protecting.
 
@@ -211,8 +240,9 @@ your app ──► Seerlens SDK (or any OTLP exporter) ──► collector ─�
 
 | Piece | What it is |
 |-------|-----------|
-| `Seerlens.Sdk` | .NET SDK. An `IChatClient` wrapper plus a small API for grouping traces. |
-| `Seerlens.Evals` | Golden sets, scorers (keyword or LLM-as-judge), and a runner that scores your prompts and reports the run. |
+| `Seerlens.Sdk` | .NET SDK. An `IChatClient` wrapper, a small API for grouping traces, and an `AddSeerlens` DI extension. |
+| `Seerlens.SemanticKernel` | A Semantic Kernel filter that traces every kernel function automatically. One `builder.AddSeerlens(url)` call. |
+| `Seerlens.Evals` | Golden sets, scorers (keyword, LLM-as-judge, rubric, regex, json-schema, agent), and a runner that scores your prompts and reports the run. |
 | `Seerlens.Collector` | ASP.NET Core app. Trace and eval ingest, SQLite store, live feed, and it serves the dashboard. Packaged as the `seerlens` tool. |
 | `dashboard` | React + TypeScript UI. Trace timeline, cost and token rollups, and the eval trend. |
 
