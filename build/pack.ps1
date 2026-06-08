@@ -1,7 +1,8 @@
 # Builds everything shippable into dist/:
-#   - Seerlens.nupkg          the `seerlens` dotnet tool
-#   - Seerlens.Sdk.nupkg      the .NET SDK
-#   - seerlens-<rid>.zip      self-contained builds for people without .NET
+#   - Seerlens.nupkg                the `seerlens` dotnet tool
+#   - Seerlens.Sdk.nupkg            the .NET SDK
+#   - Seerlens.SemanticKernel.nupkg the Semantic Kernel tracing filter
+#   - seerlens-<rid>.zip            self-contained builds for people without .NET
 #
 # Usage: pwsh build/pack.ps1
 
