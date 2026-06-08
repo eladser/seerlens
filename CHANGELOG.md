@@ -2,6 +2,11 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.3.0 - 06-08
+
+- Semantic Kernel integration: a new `Seerlens.SemanticKernel` package adds a kernel filter that traces every SK function automatically. Prompt calls become `llm` spans (model, tokens, and cost read from the connector); native functions become `tool` spans; all grouped per top-level invocation. Wire it with one line, `builder.AddSeerlens("http://localhost:5005")`, no `SeerlensTrace` calls in your code. The model is resolved from the kernel's chat service when the result metadata doesn't carry it. Multi-targets net8.0/net9.0/net10.0. See `samples/SkSample`.
+- DI extension: `services.AddSeerlens(url)` on `IServiceCollection` configures the collector once at app startup. Added to `Seerlens.Sdk`.
+
 ## 1.2.0 - 06-07
 
 - Rubric judging: the `rubric` scorer grades each criterion in a case's rubric on its own and averages them, instead of one holistic verdict.

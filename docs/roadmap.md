@@ -30,19 +30,24 @@ The 0.3 through 0.7 plan all landed:
 - **More scorers.** A `regex` scorer (fraction of patterns matched, offline) and a `json-schema` scorer (the answer must parse as JSON and validate against a schema, for structured output), alongside keyword, llm-judge and agent.
 - **.NET 10.** Moved the whole stack to .NET 10. The published dotnet tool now needs the .NET 10 runtime.
 
+## Shipped in 1.3
+
+- **Semantic Kernel, traced automatically.** A new `Seerlens.SemanticKernel` package adds a kernel filter that turns every SK function into a span, prompt calls priced with tokens and cost, native functions as tool calls, grouped per invocation. One `builder.AddSeerlens(url)` call, no `SeerlensTrace` in your code.
+- **DI wiring.** An `AddSeerlens` extension on `IServiceCollection` so an ASP.NET app configures the collector once at startup.
+
 ## What's next
 
 ### Judging, continued
 
 The rest of trustworthy judging: a consensus mode that runs more than one judge and flags disagreement, and an embedding-similarity scorer (cosine distance to a reference answer), which needs an embeddings provider since the eval provider may not offer one.
 
-### 1.3: Scheduled evals
+### Scheduled evals
 
 Run a set on its own, nightly against a sample of real inputs, and fire the existing webhook on a drop. Regressions should surface without anyone remembering to look.
 
-### Deeper in .NET
+### Deeper in .NET, continued
 
-Lean further into the one ecosystem with no native option: a DI / ASP.NET setup extension for zero-config wiring, a Semantic Kernel filter that traces SK agents with no extra code, and clean interop next to the Aspire dashboard. This is where the .NET-first identity compounds rather than spreads thin.
+The SK filter and DI extension shipped in 1.3. Next in the same direction: clean interop next to the Aspire dashboard, so Seerlens sits alongside the tooling .NET devs already run. This is where the .NET-first identity compounds rather than spreads thin.
 
 ### Scale, when you actually need it
 

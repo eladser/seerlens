@@ -3,7 +3,7 @@
 *DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
 
-**Status (1.2):** On .NET 10. Tracing with .NET, Python, and JavaScript SDKs, all on OTLP. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), scored by keyword, LLM judge, rubric (per-criterion), regex, JSON-schema, or agent tool-call sequence. Model and prompt comparison, cost with a budget and alerts priced on the current model lineup, agent and MCP step trees, JSON export, and a webhook for regressions and over-budget spend. What's next is in the [roadmap](roadmap.md): consensus judging, an embedding-similarity scorer, and scheduled evals.
+**Status (1.3):** On .NET 10. Tracing with .NET, Python, and JavaScript SDKs, all on OTLP, plus a `Seerlens.SemanticKernel` filter that traces SK functions with no code changes and an `AddSeerlens` DI extension. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), scored by keyword, LLM judge, rubric (per-criterion), regex, JSON-schema, or agent tool-call sequence. Model and prompt comparison, cost with a budget and alerts priced on the current model lineup, agent and MCP step trees, JSON export, and a webhook for regressions and over-budget spend. What's next is in the [roadmap](roadmap.md): consensus judging, an embedding-similarity scorer, and scheduled evals.
 
 ## Pitch
 

@@ -1,6 +1,16 @@
 # Reference
 
-Everything configurable in one place: environment variables, the `seerlens eval` command, and the HTTP API.
+Everything configurable in one place: packages, environment variables, the `seerlens eval` command, and the HTTP API.
+
+## Packages
+
+| Package | Target frameworks | What it's for |
+|---|---|---|
+| `seerlens` (tool) | net10.0 | The collector and dashboard. `dotnet tool install -g seerlens`, or a self-contained zip. |
+| `Seerlens.Sdk` | net8.0 / net9.0 / net10.0 | Wrap an `IChatClient` with `.UseSeerlens()`, group traces with `SeerlensTrace.Begin`, configure via `services.AddSeerlens(url)`. |
+| `Seerlens.SemanticKernel` | net8.0 / net9.0 / net10.0 | A Semantic Kernel filter. `builder.AddSeerlens(url)` on the kernel builder traces every SK function with no other code. |
+
+Python and JavaScript SDKs ship to PyPI (`seerlens`) and npm (`seerlens`); see their READMEs under `sdk/`.
 
 ## Environment variables
 
