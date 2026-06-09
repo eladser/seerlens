@@ -2,6 +2,7 @@
 
 [![tool on nuget](https://img.shields.io/nuget/v/Seerlens?label=tool)](https://www.nuget.org/packages/Seerlens)
 [![sdk on nuget](https://img.shields.io/nuget/v/Seerlens.Sdk?label=sdk)](https://www.nuget.org/packages/Seerlens.Sdk)
+[![semantic kernel on nuget](https://img.shields.io/nuget/v/Seerlens.SemanticKernel?label=semantic%20kernel)](https://www.nuget.org/packages/Seerlens.SemanticKernel)
 [![pypi](https://img.shields.io/pypi/v/seerlens?label=pypi)](https://pypi.org/project/seerlens/)
 [![npm](https://img.shields.io/npm/v/seerlens?label=npm)](https://www.npmjs.com/package/seerlens)
 [![ci](https://github.com/eladser/seerlens/actions/workflows/ci.yml/badge.svg)](https://github.com/eladser/seerlens/actions/workflows/ci.yml)
