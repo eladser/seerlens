@@ -25,6 +25,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
+    <!-- Override the native SQLite bundle to 3.x; the 2.1.11 it pulls in transitively has a
+         high-severity advisory (NU1903 / GHSA-2m69-gcr7-jv3q). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
   </ItemGroup>
 
   <ItemGroup>
