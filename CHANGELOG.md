@@ -2,7 +2,7 @@
 
 Notable changes per release. Dates are in 2026.
 
-## 1.4.0 - 06-09
+## 1.4.0 - 06-23
 
 - Scheduled evals: a golden set can run on its own once a day, set the time from the Settings page (or the `/api/schedules` endpoint). The run is scored and stored like a manual one, and a quality drop fires the existing regression webhook, so regressions surface without anyone remembering to look.
 - Consensus scorer: `consensus` runs the LLM judge several times and averages, steadier than one verdict, and warns when the votes disagree past a threshold so a flaky judgement doesn't pass as a confident one.
