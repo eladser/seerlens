@@ -56,7 +56,7 @@ static class EvalCommand
         // the others score a single answer.
         var run = opt.Scorer == "agent"
             ? await new AgentRunner(ai.Client!).Run(set, ai.Model)
-            : await new EvalRunner(ai.Client!, Scoring.For(opt.Scorer, ai.Client!)).Run(set, ai.Model);
+            : await new EvalRunner(ai.Client!, Scoring.For(opt.Scorer, ai.Client!, ai.Embedder)).Run(set, ai.Model);
         if (!opt.Quiet)
             PrintTable(run);
 
@@ -211,7 +211,7 @@ static class EvalCommand
           --baseline <path>     fail if the score dropped too far below a saved baseline
           --tolerance <0..1>    allowed drop versus the baseline (default 0.05)
           --save-baseline <p>   write this run's score as the baseline at <p>
-          --scorer <name>       keyword (default), llm-judge, rubric, regex, json-schema, or agent
+          --scorer <name>       keyword (default), llm-judge, rubric, consensus, regex, json-schema, embedding, or agent
           --model <name>        override SEERLENS_AI_MODEL for this run
           --json <path>         write the full run as JSON
           --junit <path>        write JUnit XML for CI test reporters
@@ -262,7 +262,7 @@ static class EvalCommand
                 if (o.Error is not null) break;
             }
             if (!Scoring.IsKnown(o.Scorer))
-                o.Error = $"--scorer must be one of keyword, llm-judge, rubric, regex, json-schema, agent, got '{o.Scorer}'";
+                o.Error = $"--scorer must be one of keyword, llm-judge, rubric, consensus, regex, json-schema, embedding, agent, got '{o.Scorer}'";
             return o;
         }
 

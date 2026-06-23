@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { getConfig, setAlerts, setBudget } from '../api'
-import type { Config } from '../types'
+import { getConfig, getSets, setAlerts, setBudget, setSchedules } from '../api'
+import type { Config, Schedule } from '../types'
+
+const SCORERS = ['keyword', 'llm-judge', 'rubric', 'consensus', 'regex', 'json-schema', 'embedding', 'agent']
 
 // One place to see how the collector is wired up and set the spend budget. The
 // provider key stays in the environment on purpose, so this page shows status,
@@ -12,15 +14,34 @@ export function SettingsView() {
   const [webhook, setWebhook] = useState('')
   const [drop, setDrop] = useState('5')
   const [hookSaved, setHookSaved] = useState(false)
+  const [schedules, setSched] = useState<Schedule[]>([])
+  const [setNames, setSetNames] = useState<string[]>([])
+  const [schedSaved, setSchedSaved] = useState(false)
 
   const load = () => getConfig().then(c => {
     setCfg(c)
     setDraft(c.budget.monthlyUsd != null ? String(c.budget.monthlyUsd) : '')
     setWebhook(c.alerts.webhookUrl ?? '')
     setDrop(String(Math.round(c.alerts.regressionDrop * 100)))
+    setSched(c.schedules ?? [])
   }).catch(() => {})
 
   useEffect(() => { load() }, [])
+  useEffect(() => { getSets().then(s => setSetNames(s.sets)).catch(() => {}) }, [])
+
+  async function saveSchedules() {
+    const clean = schedules.filter(s => s.set)
+    await setSchedules(clean).catch(() => {})
+    setSchedSaved(true)
+    setTimeout(() => setSchedSaved(false), 1500)
+    load()
+  }
+
+  const addRow = () =>
+    setSched([...schedules, { set: setNames[0] ?? '', scorer: 'keyword', dailyAt: '09:00:00' }])
+  const editRow = (i: number, patch: Partial<Schedule>) =>
+    setSched(schedules.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  const removeRow = (i: number) => setSched(schedules.filter((_, j) => j !== i))
 
   async function save() {
     const n = parseFloat(draft)
@@ -87,6 +108,35 @@ export function SettingsView() {
           </div>
         </div>
         <p className="muted hint">Fires when an eval run regresses past that drop, or when spend crosses the budget. Leave the URL blank to turn alerts off.</p>
+      </section>
+
+      <section className="settings-block">
+        <h3>Scheduled evals</h3>
+        {schedules.length === 0 && <p className="muted">No scheduled evals. Add one to run a set every day on its own.</p>}
+        {schedules.map((s, i) => (
+          <div className="budget-set" key={i}>
+            <select value={s.set} onChange={e => editRow(i, { set: e.target.value })}>
+              {setNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select value={s.scorer} onChange={e => editRow(i, { scorer: e.target.value })}>
+              {SCORERS.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <label className="muted">at</label>
+            <input
+              type="time"
+              value={s.dailyAt.slice(0, 5)}
+              onChange={e => editRow(i, { dailyAt: `${e.target.value || '09:00'}:00` })}
+            />
+            <button className="ghost-btn" onClick={() => removeRow(i)}>remove</button>
+          </div>
+        ))}
+        <div className="budget-set">
+          <button className="run-btn" onClick={addRow} disabled={setNames.length === 0}>Add</button>
+          <button className="run-btn" onClick={saveSchedules}>{schedSaved ? 'saved' : 'Save'}</button>
+        </div>
+        <p className="muted hint">
+          Runs daily at the chosen time (the collector's local time) while it's running. A drop fires the same regression webhook above. Judge-based scorers need a provider configured.
+        </p>
       </section>
 
       <section className="settings-block">

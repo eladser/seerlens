@@ -32,6 +32,7 @@ builder.Services.AddSingleton<Alerter>();
 builder.Services.AddSingleton(new GoldenSets(
     builder.Configuration["SEERLENS_EVALS_DIR"] ?? Path.Combine(AppContext.BaseDirectory, "evals")));
 builder.Services.AddSingleton<LiveFeed>();
+builder.Services.AddHostedService<EvalScheduler>();
 
 var app = builder.Build();
 
@@ -123,30 +124,20 @@ app.MapPost("/eval/run", async (RunRequest req, GoldenSets sets, AiProvider ai, 
 {
     if (!ai.Configured)
         return Results.BadRequest(new { error = "no provider configured; set SEERLENS_AI_BASE_URL/KEY/MODEL" });
-    if (sets.Get(req.Set) is not { } set)
+    if (sets.Get(req.Set) is null)
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
     if (!string.IsNullOrEmpty(req.Scorer) && !Scoring.IsKnown(req.Scorer))
         return Results.BadRequest(new { error = $"unknown scorer: {req.Scorer}" });
 
-    var prev = evals.List(req.Set).LastOrDefault();   // most recent run before this one
-
-    // "agent" runs the model with the case's tools and scores the tool sequence;
-    // the others score a single answer.
-    Seerlens.Evals.EvalRun run;
-    if (req.Scorer == "agent")
+    try
     {
-        run = await new AgentRunner(ai.Client!).Run(set, ai.Model);
+        var summary = await EvalService.RunAndStore(req.Set, req.Scorer, sets, ai, evals, settings, alerter);
+        return Results.Ok(summary);
     }
-    else
+    catch (InvalidOperationException e)   // e.g. embedding scorer without an embeddings provider
     {
-        run = await new EvalRunner(ai.Client!, Scoring.For(req.Scorer, ai.Client!)).Run(set, ai.Model);
+        return Results.BadRequest(new { error = e.Message });
     }
-    var summary = evals.Add(ToEvalRunIn(run));
-
-    if (prev is not null && prev.Score - run.Score > settings.GetAlerts().RegressionDrop)
-        _ = alerter.EvalRegressed(req.Set, prev.Score, run.Score);
-
-    return Results.Ok(summary);
 });
 
 // Run a set across several models (and an optional system prompt) and return
@@ -225,6 +216,19 @@ app.MapPut("/api/alerts", (Alerts alerts, SettingsStore settings) =>
     return Results.Ok(clean);
 });
 
+app.MapGet("/api/schedules", (SettingsStore settings) => settings.GetSchedules());
+
+// Replace the schedule list. Drops entries naming an unknown set or scorer rather
+// than store something the scheduler would just skip or error on.
+app.MapPut("/api/schedules", (List<Schedule> schedules, SettingsStore settings, GoldenSets sets) =>
+{
+    var clean = (schedules ?? [])
+        .Where(s => !string.IsNullOrWhiteSpace(s.Set) && sets.Get(s.Set) is not null && Scoring.IsKnown(s.Scorer))
+        .ToList();
+    settings.SetSchedules(clean);
+    return Results.Ok(clean);
+});
+
 // A read-only look at how the collector is configured, for the Settings page.
 app.MapGet("/api/config", (AiProvider ai, GoldenSets sets, SettingsStore settings) => new
 {
@@ -236,6 +240,7 @@ app.MapGet("/api/config", (AiProvider ai, GoldenSets sets, SettingsStore setting
     pricingOverride = Pricing.HasOverride,
     budget = settings.GetBudget(),
     alerts = settings.GetAlerts(),
+    schedules = settings.GetSchedules(),
 });
 
 app.MapGet("/events", async (HttpContext ctx, LiveFeed live, CancellationToken ct) =>
@@ -286,10 +291,6 @@ static void LoadDotEnv()
             Environment.SetEnvironmentVariable(key, t[(eq + 1)..].Trim());
     }
 }
-
-static EvalRunIn ToEvalRunIn(Seerlens.Evals.EvalRun r) =>
-    new(r.Id, r.Set, r.Target, r.Scorer, r.CreatedAt, r.Score,
-        r.Cases.Select(c => new EvalCaseIn(c.Input, c.Answer, c.Score)).ToList());
 
 record RunRequest(string Set, string Scorer);
 record CompareRequest(string Set, List<string>? Models, string? Scorer, string? PromptPrefix);

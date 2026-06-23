@@ -35,15 +35,13 @@ The 0.3 through 0.7 plan all landed:
 - **Semantic Kernel, traced automatically.** A new `Seerlens.SemanticKernel` package adds a kernel filter that turns every SK function into a span, prompt calls priced with tokens and cost, native functions as tool calls, grouped per invocation. One `builder.AddSeerlens(url)` call, no `SeerlensTrace` in your code.
 - **DI wiring.** An `AddSeerlens` extension on `IServiceCollection` so an ASP.NET app configures the collector once at startup.
 
+## Shipped in 1.4
+
+- **Scheduled evals.** A golden set runs on its own once a day, at a time you set from the dashboard. The run is scored and stored like a manual one, and a drop fires the regression webhook, so regressions surface without anyone remembering to look.
+- **Consensus judging.** The `consensus` scorer runs the judge several times and averages, then warns when the votes disagree, a more trustworthy verdict than one shot.
+- **Embedding-similarity scorer.** The `embedding` scorer scores cosine distance to a case's reference answer. Embeddings default to the chat provider, with `SEERLENS_EMBED_*` overrides for when the judge provider has none.
+
 ## What's next
-
-### Judging, continued
-
-The rest of trustworthy judging: a consensus mode that runs more than one judge and flags disagreement, and an embedding-similarity scorer (cosine distance to a reference answer), which needs an embeddings provider since the eval provider may not offer one.
-
-### Scheduled evals
-
-Run a set on its own, nightly against a sample of real inputs, and fire the existing webhook on a drop. Regressions should surface without anyone remembering to look.
 
 ### Deeper in .NET, continued
 

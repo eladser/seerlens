@@ -102,6 +102,9 @@ export type ToolScoreResult = {
 
 export type Alerts = { webhookUrl: string | null; regressionDrop: number }
 
+// dailyAt is a "HH:mm:ss" time of day, in the collector's local time
+export type Schedule = { set: string; scorer: string; dailyAt: string }
+
 export type Config = {
   providerConfigured: boolean
   model: string
@@ -111,4 +114,5 @@ export type Config = {
   pricingOverride: boolean
   budget: Budget
   alerts: Alerts
+  schedules: Schedule[]
 }

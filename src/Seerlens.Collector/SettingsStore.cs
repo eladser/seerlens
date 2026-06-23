@@ -10,6 +10,10 @@ public record Budget(double? MonthlyUsd = null, double? AlertPerCallUsd = null);
 // A Slack incoming webhook works directly; the payload includes a "text" field.
 public record Alerts(string? WebhookUrl = null, double RegressionDrop = 0.05);
 
+// A golden set to run on its own once a day, at DailyAt (collector's local time).
+// The regression webhook fires if the score drops, same as a manual run.
+public record Schedule(string Set, string Scorer = "keyword", TimeOnly DailyAt = default);
+
 // Tiny JSON-file settings store for the things you control from the dashboard.
 public sealed class SettingsStore
 {
@@ -22,10 +26,12 @@ public sealed class SettingsStore
 
     public Budget GetBudget() { lock (_gate) return Read().Budget ?? new Budget(); }
     public Alerts GetAlerts() { lock (_gate) return Read().Alerts ?? new Alerts(); }
+    public IReadOnlyList<Schedule> GetSchedules() { lock (_gate) return Read().Schedules ?? []; }
 
     // Read-modify-write under one lock so saving budget can't clobber alerts.
     public void SetBudget(Budget budget) { lock (_gate) Write(Read() with { Budget = budget }); }
     public void SetAlerts(Alerts alerts) { lock (_gate) Write(Read() with { Alerts = alerts }); }
+    public void SetSchedules(IReadOnlyList<Schedule> schedules) { lock (_gate) Write(Read() with { Schedules = schedules }); }
 
     Settings Read()
     {
@@ -36,7 +42,7 @@ public sealed class SettingsStore
 
     void Write(Settings settings) => File.WriteAllText(_path, JsonSerializer.Serialize(settings, Json));
 
-    static Settings Empty => new(new Budget(), new Alerts());
+    static Settings Empty => new(new Budget(), new Alerts(), []);
 
-    record Settings(Budget? Budget, Alerts? Alerts);
+    record Settings(Budget? Budget, Alerts? Alerts, IReadOnlyList<Schedule>? Schedules = null);
 }
