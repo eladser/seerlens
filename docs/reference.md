@@ -24,6 +24,9 @@ Python and JavaScript SDKs ship to PyPI (`seerlens`) and npm (`seerlens`); see t
 | `SEERLENS_AI_BASE_URL` | none | OpenAI-compatible endpoint used to run evals and comparisons (Groq, Gemini, OpenAI, ...). |
 | `SEERLENS_AI_KEY` | none | API key for that provider. Stays in the environment, never in the UI. |
 | `SEERLENS_AI_MODEL` | `gpt-4o-mini` | Default model for eval/compare runs. |
+| `SEERLENS_EMBED_MODEL` | `text-embedding-3-small` | Model the `embedding` scorer uses. |
+| `SEERLENS_EMBED_BASE_URL` | the chat `SEERLENS_AI_BASE_URL` | Endpoint for embeddings, set this when your judge provider has none. |
+| `SEERLENS_EMBED_KEY` | the chat `SEERLENS_AI_KEY` | API key for the embeddings endpoint. |
 
 A `.env.local` next to the collector is loaded automatically, so you don't have to export these by hand. Keep it out of source control.
 
@@ -41,7 +44,7 @@ seerlens eval <set> [options]
 | `--baseline <path>` | Fail if the score dropped too far below a saved baseline. |
 | `--tolerance <0..1>` | Allowed drop versus the baseline (default 0.05). |
 | `--save-baseline <path>` | Write this run's score as the baseline at `<path>`. |
-| `--scorer <name>` | `keyword` (default), `llm-judge`, `rubric`, `regex`, `json-schema`, or `agent`. |
+| `--scorer <name>` | `keyword` (default), `llm-judge`, `rubric`, `consensus`, `regex`, `json-schema`, `embedding`, or `agent`. |
 | `--model <name>` | Override `SEERLENS_AI_MODEL` for this run. |
 | `--json <path>` | Write the full run as JSON. |
 | `--junit <path>` | Write JUnit XML for CI test reporters. |
@@ -62,6 +65,7 @@ A set is `{ "name": "...", "cases": [ ... ] }`. Each case:
 | `rubric` | rubric scorer | A list of criteria, each scored 0..1 by the judge and then averaged. |
 | `patterns` | regex scorer | Regex patterns a good answer must match. Score is the fraction matched. |
 | `schema` | json-schema scorer | A JSON Schema (as a string) the answer, parsed as JSON, must validate against. |
+| `reference` | embedding scorer | A gold answer; the score is cosine similarity between it and the answer. |
 | `tools` | agent scorer | Tools the model may call: `{ name, description, result }`. `result` is the canned value returned when called. |
 | `expectedTools` | agent scorer | The tool names you expect, in order. The run is scored on the in-order match. |
 
@@ -91,4 +95,5 @@ The collector listens on `SEERLENS_URL`. Traces are normalized into one model wh
 - `GET /api/cost` - month-to-date and all-time spend, by model, last 14 days, budget state.
 - `PUT /api/budget` - set the monthly budget.
 - `GET /api/alerts`, `PUT /api/alerts` - webhook URL and regression threshold.
-- `GET /api/config` - provider status, evals dir, pricing override, budget, alerts.
+- `GET /api/schedules`, `PUT /api/schedules` - daily eval schedules, each `{ set, scorer, dailyAt }` (`dailyAt` is a `HH:mm:ss` local time).
+- `GET /api/config` - provider status, evals dir, pricing override, budget, alerts, schedules.

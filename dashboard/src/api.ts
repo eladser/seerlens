@@ -1,6 +1,6 @@
 import type {
   Alerts, Budget, CompareResult, Config, CostReport, EvalRun, EvalRunDetail, GoldenCase, GoldenSet,
-  Stats, ToolScoreResult, TraceDetail, TraceSummary,
+  Schedule, Stats, ToolScoreResult, TraceDetail, TraceSummary,
 } from './types'
 
 export async function getTraces(limit = 200): Promise<TraceSummary[]> {
@@ -86,6 +86,16 @@ export async function scoreTools(traceId: string, expected: string[]): Promise<T
 export async function getCost(): Promise<CostReport> {
   const r = await fetch('/api/cost')
   if (!r.ok) throw new Error(`cost: ${r.status}`)
+  return r.json()
+}
+
+export async function setSchedules(schedules: Schedule[]): Promise<Schedule[]> {
+  const r = await fetch('/api/schedules', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(schedules),
+  })
+  if (!r.ok) throw new Error(`schedules: ${r.status}`)
   return r.json()
 }
 

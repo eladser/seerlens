@@ -8,7 +8,7 @@
 
   <PropertyGroup>
     <PackageId>Seerlens.SemanticKernel</PackageId>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Authors>Elad Sertshuk</Authors>
     <Description>Auto-trace Semantic Kernel into Seerlens. Add one filter and every function, tool, and model call shows up in the local dashboard, no manual instrumentation.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>

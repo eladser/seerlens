@@ -19,7 +19,8 @@ public record GoldenCase(
     string[]? ExpectedTools = null,
     string[]? Rubric = null,      // criteria scored one by one by the rubric judge
     string[]? Patterns = null,    // regex patterns a good answer must match
-    string? Schema = null);       // a JSON Schema the answer (as JSON) must validate against
+    string? Schema = null,        // a JSON Schema the answer (as JSON) must validate against
+    string? Reference = null);    // gold answer the embedding scorer compares against
 
 public record GoldenSet(string Name, IReadOnlyList<GoldenCase> Cases)
 {

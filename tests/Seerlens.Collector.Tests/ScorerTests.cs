@@ -99,4 +99,64 @@ public class ScorerTests
         var judge = new ReplyClient("Scoring 2 criteria: 1.0 and 0.5");
         Assert.Equal(0.75, await new RubricScorer(judge).Score(c, "x"));
     }
+
+    // --- consensus ---
+
+    // a judge that returns a different reply per call, so consensus has something to average
+    sealed class SeqClient(params string[] replies) : IChatClient
+    {
+        int _i;
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, CancellationToken ct = default)
+            => Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, replies[_i++ % replies.Length])));
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public object? GetService(Type t, object? key = null) => null;
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task Consensus_averages_the_votes()
+    {
+        var judge = new SeqClient("1.0", "0.0", "0.5");
+        Assert.Equal(0.5, await new ConsensusScorer(judge, votes: 3).Score(Case(), "x"));
+    }
+
+    // --- embedding ---
+
+    sealed class FakeEmbedder(Func<string, float[]> vec) : IEmbeddingGenerator<string, Embedding<float>>
+    {
+        public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(IEnumerable<string> values,
+            EmbeddingGenerationOptions? options = null, CancellationToken ct = default)
+            => Task.FromResult(new GeneratedEmbeddings<Embedding<float>>(
+                values.Select(v => new Embedding<float>(vec(v))).ToList()));
+
+        public object? GetService(Type t, object? key = null) => null;
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task Embedding_identical_vectors_score_one()
+    {
+        var emb = new FakeEmbedder(_ => [1f, 0f, 0f]);
+        var c = new GoldenCase("c1", "q", Reference: "Paris");
+        Assert.Equal(1.0, await new EmbeddingScorer(emb).Score(c, "Paris"), 3);
+    }
+
+    [Fact]
+    public async Task Embedding_orthogonal_vectors_score_zero()
+    {
+        var emb = new FakeEmbedder(s => s == "answer" ? [1f, 0f] : [0f, 1f]);
+        var c = new GoldenCase("c1", "q", Reference: "reference");
+        Assert.Equal(0.0, await new EmbeddingScorer(emb).Score(c, "answer"), 3);
+    }
+
+    [Fact]
+    public async Task Embedding_with_no_reference_scores_zero()
+    {
+        var emb = new FakeEmbedder(_ => [1f, 1f]);
+        Assert.Equal(0.0, await new EmbeddingScorer(emb).Score(Case(), "anything"));
+    }
 }

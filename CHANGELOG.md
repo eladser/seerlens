@@ -2,6 +2,12 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.4.0 - 06-09
+
+- Scheduled evals: a golden set can run on its own once a day, set the time from the Settings page (or the `/api/schedules` endpoint). The run is scored and stored like a manual one, and a quality drop fires the existing regression webhook, so regressions surface without anyone remembering to look.
+- Consensus scorer: `consensus` runs the LLM judge several times and averages, steadier than one verdict, and warns when the votes disagree past a threshold so a flaky judgement doesn't pass as a confident one.
+- Embedding-similarity scorer: `embedding` scores cosine similarity between the answer and a case's new `reference` field. Embeddings default to the chat provider; point them elsewhere with `SEERLENS_EMBED_BASE_URL`/`_KEY`/`_MODEL` when the judge provider has no embeddings.
+
 ## 1.3.0 - 06-08
 
 - Semantic Kernel integration: a new `Seerlens.SemanticKernel` package adds a kernel filter that traces every SK function automatically. Prompt calls become `llm` spans (model, tokens, and cost read from the connector); native functions become `tool` spans; all grouped per top-level invocation. Wire it with one line, `builder.AddSeerlens("http://localhost:5005")`, no `SeerlensTrace` calls in your code. The model is resolved from the kernel's chat service when the result metadata doesn't carry it. Multi-targets net8.0/net9.0/net10.0. See `samples/SkSample`.

@@ -181,3 +181,53 @@ public sealed class RubricScorer(IChatClient judge) : IScorer
         return nums.Count > count ? nums.Take(count).ToList() : nums;
     }
 }
+
+// Runs the llm judge several times and averages, steadier than a single verdict.
+// When the votes disagree past a threshold it warns, so a flaky judgement doesn't
+// pass as a confident one. (Relies on the provider's nonzero default temperature to
+// make the votes vary.)
+public sealed class ConsensusScorer(IChatClient judge, int votes = 3, double disagreeSpread = 0.4) : IScorer
+{
+    readonly LlmJudgeScorer _one = new(judge);
+
+    public string Name => "consensus";
+
+    public async Task<double> Score(GoldenCase c, string answer)
+    {
+        var scores = new double[Math.Max(1, votes)];
+        for (var i = 0; i < scores.Length; i++)
+            scores[i] = await _one.Score(c, answer);
+
+        var spread = scores.Max() - scores.Min();
+        if (spread > disagreeSpread)
+            Console.Error.WriteLine(
+                $"consensus: judges disagree on \"{c.Id}\" (spread {spread:0.00}; {string.Join(", ", scores.Select(s => s.ToString("0.00", CultureInfo.InvariantCulture)))})");
+        return scores.Average();
+    }
+}
+
+// Cosine similarity between the answer and the case's reference answer. Needs an
+// embeddings provider. Returns 0 when there's no reference or the answer is empty.
+public sealed class EmbeddingScorer(IEmbeddingGenerator<string, Embedding<float>> embedder) : IScorer
+{
+    public string Name => "embedding";
+
+    public async Task<double> Score(GoldenCase c, string answer)
+    {
+        if (string.IsNullOrWhiteSpace(c.Reference) || string.IsNullOrWhiteSpace(answer))
+            return 0;
+
+        var vecs = await embedder.GenerateAsync([answer, c.Reference]);
+        if (vecs.Count < 2) return 0;   // a well-behaved embedder returns one per input
+        return Cosine(vecs[0].Vector.Span, vecs[1].Vector.Span);
+    }
+
+    static double Cosine(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+    {
+        if (a.Length != b.Length || a.Length == 0) return 0;
+        double dot = 0, na = 0, nb = 0;
+        for (var i = 0; i < a.Length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+        if (na == 0 || nb == 0) return 0;
+        return Math.Clamp(dot / (Math.Sqrt(na) * Math.Sqrt(nb)), 0, 1); // negatives clamp to 0
+    }
+}

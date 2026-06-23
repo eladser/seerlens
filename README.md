@@ -176,8 +176,10 @@ Then pick the set in the **Evals** tab and hit Run. The run lands on the trend. 
 - **keyword** checks the answer for the expected terms. Offline, no extra calls.
 - **llm-judge** asks the model for one 0..1 grade against the case's `criteria`.
 - **rubric** asks the judge to score each criterion in the case's `rubric` separately, then averages, a more defensible number than one holistic verdict.
+- **consensus** runs the judge several times and averages, and warns when the votes disagree, so a flaky judgement doesn't pass as a confident one.
 - **regex** scores the fraction of the case's `patterns` the answer matches. Offline.
 - **json-schema** is 1 if the answer parses as JSON and validates against the case's `schema`, for structured-output checks. Offline.
+- **embedding** scores cosine similarity between the answer and the case's `reference` answer. Needs an embeddings provider (defaults to the chat one).
 - **agent** runs the model with the case's tools and scores the call sequence (see below).
 
 ![Run an eval from the dashboard](https://raw.githubusercontent.com/eladser/seerlens/main/docs/img/eval-run.png)
@@ -211,6 +213,10 @@ seerlens eval support --baseline .seerlens/support.base --junit results.xml
 
 It exits non-zero when the mean score is below `--min`, or when it dropped too far below the baseline, which is what turns the eval engine into an actual guardrail. See [docs/ci-eval-gate.yml](docs/ci-eval-gate.yml) for a GitHub Actions example.
 
+### On a schedule
+
+CI catches regressions on a push; a schedule catches the ones that creep in when nothing changed on your side, a model updated underneath you, say. On the **Settings** page, give a set a scorer and a time of day. While the collector is running it runs that set once a day, stores the result on the trend, and fires the same regression webhook on a drop. Nobody has to remember to look.
+
 ## A look around
 
 An agent run as a step tree, with the MCP tool calls and their arguments and result:
@@ -243,7 +249,7 @@ your app ──► Seerlens SDK (or any OTLP exporter) ──► collector ─�
 |-------|-----------|
 | `Seerlens.Sdk` | .NET SDK. An `IChatClient` wrapper, a small API for grouping traces, and an `AddSeerlens` DI extension. |
 | `Seerlens.SemanticKernel` | A Semantic Kernel filter that traces every kernel function automatically. One `builder.AddSeerlens(url)` call. |
-| `Seerlens.Evals` | Golden sets, scorers (keyword, LLM-as-judge, rubric, regex, json-schema, agent), and a runner that scores your prompts and reports the run. |
+| `Seerlens.Evals` | Golden sets, scorers (keyword, LLM-as-judge, rubric, consensus, regex, json-schema, embedding, agent), and a runner that scores your prompts and reports the run. |
 | `Seerlens.Collector` | ASP.NET Core app. Trace and eval ingest, SQLite store, live feed, and it serves the dashboard. Packaged as the `seerlens` tool. |
 | `dashboard` | React + TypeScript UI. Trace timeline, cost and token rollups, and the eval trend. |
 
@@ -289,9 +295,8 @@ Stable, and installable as a dotnet tool, from NuGet, PyPI, or npm, or via Docke
 
 What's next, with the full plan in the [roadmap](docs/roadmap.md):
 
-- **Judging you can trust.** Rubric-based scoring and more scorer types (JSON-schema, regex, embedding similarity), so the number you gate a build on holds up.
-- **Scheduled evals.** Run a set nightly against a sample and fire the webhook on a drop.
-- **Deeper in .NET.** A DI / ASP.NET setup extension and a Semantic Kernel filter that traces agents with no extra code.
+- **Deeper in .NET, continued.** The Semantic Kernel filter and DI extension shipped in 1.3; next is clean interop alongside the Aspire dashboard.
+- **Scale, when you need it.** Opt-in sampling and a retention policy so the local store doesn't grow forever.
 
 ## Docs
 
