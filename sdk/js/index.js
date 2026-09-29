@@ -81,13 +81,22 @@ function attrs({ model, prompt, completion, inputTokens, outputTokens, system })
   const out = []
   const str = (k, v) => { if (v) out.push({ key: k, value: { stringValue: String(v) } }) }
   const int = (k, v) => { if (v != null) out.push({ key: k, value: { intValue: String(v) } }) }
-  str('gen_ai.system', system || provider(model))
+  str('gen_ai.provider.name', system || provider(model))
   str('gen_ai.request.model', model)
+  // older collectors (1.4 and earlier) only read these
+  str('gen_ai.system', system || provider(model))
   str('gen_ai.prompt', prompt)
   str('gen_ai.completion', completion)
+  if (prompt) out.push(messageAttr('gen_ai.input.messages', 'user', prompt))
+  if (completion) out.push(messageAttr('gen_ai.output.messages', 'assistant', completion))
   int('gen_ai.usage.input_tokens', inputTokens)
   int('gen_ai.usage.output_tokens', outputTokens)
   return out
+}
+
+function messageAttr(key, role, text) {
+  const payload = JSON.stringify([{ role, parts: [{ type: 'text', content: text }] }])
+  return { key, value: { stringValue: payload } }
 }
 
 function provider(model) {

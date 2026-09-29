@@ -146,7 +146,7 @@ span.complete({ prompt, completion: reply, inputTokens: 40, outputTokens: 12 })
 
 An eval is a quality test for your AI's answers, the part you can't catch with normal tests. AI doesn't crash when it gets worse, it just quietly gives worse answers. So you write a small set of questions where you know what a good answer looks like (a "golden set"), Seerlens runs them through a model and scores the answers, and a drop after a prompt tweak or a model swap shows up as the trend heading down.
 
-**You write the golden set**, because only you know what a good answer is for your app. Drop a JSON file in `evals/` next to the collector:
+**You write the golden set**, because only you know what a good answer is for your app. Drop a JSON file in `~/.seerlens/evals` (override with `SEERLENS_EVALS_DIR`), or just add it from the Evals tab:
 
 ```json
 {

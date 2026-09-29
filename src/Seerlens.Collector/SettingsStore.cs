@@ -33,6 +33,27 @@ public sealed class SettingsStore
     public void SetAlerts(Alerts alerts) { lock (_gate) Write(Read() with { Alerts = alerts }); }
     public void SetSchedules(IReadOnlyList<Schedule> schedules) { lock (_gate) Write(Read() with { Schedules = schedules }); }
 
+    // The date a schedule last ran, so a restart around the scheduled time doesn't
+    // trigger a second (paid) run the same day.
+    public DateOnly? GetLastRun(string key)
+    {
+        lock (_gate)
+        {
+            var runs = Read().LastRuns;
+            return runs is not null && runs.TryGetValue(key, out var date) ? date : null;
+        }
+    }
+
+    public void SetLastRun(string key, DateOnly date)
+    {
+        lock (_gate)
+        {
+            var current = Read();
+            var runs = new Dictionary<string, DateOnly>(current.LastRuns ?? new Dictionary<string, DateOnly>()) { [key] = date };
+            Write(current with { LastRuns = runs });
+        }
+    }
+
     Settings Read()
     {
         if (!File.Exists(_path)) return Empty;
@@ -44,5 +65,7 @@ public sealed class SettingsStore
 
     static Settings Empty => new(new Budget(), new Alerts(), []);
 
-    record Settings(Budget? Budget, Alerts? Alerts, IReadOnlyList<Schedule>? Schedules = null);
+    record Settings(
+        Budget? Budget, Alerts? Alerts, IReadOnlyList<Schedule>? Schedules = null,
+        IReadOnlyDictionary<string, DateOnly>? LastRuns = null);
 }

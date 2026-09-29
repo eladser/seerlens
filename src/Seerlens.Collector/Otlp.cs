@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Seerlens.Collector;
 
 // Minimal view of an OTLP/HTTP JSON trace export. We only read the fields we need
@@ -14,10 +16,27 @@ public record OtlpSpan(
     string? StartTimeUnixNano,
     string? EndTimeUnixNano,
     List<OtlpAttribute>? Attributes,
-    OtlpStatus? Status);
+    OtlpStatus? Status,
+    List<OtlpSpanEvent>? Events);
+
+// A span event, e.g. gen_ai.client.inference.operation.details, carrying the same
+// kind of attributes as the span itself.
+public record OtlpSpanEvent(string? Name, List<OtlpAttribute>? Attributes);
 
 public record OtlpAttribute(string Key, OtlpValue? Value);
-public record OtlpValue(string? StringValue, string? IntValue, double? DoubleValue, bool? BoolValue);
+
+// AnyValue from the OTLP wire format. ArrayValue/KvlistValue let gen_ai.input.messages
+// and gen_ai.output.messages carry structured message arrays instead of a flat string.
+public record OtlpValue(
+    string? StringValue,
+    string? IntValue,
+    double? DoubleValue,
+    bool? BoolValue,
+    OtlpArrayValue? ArrayValue,
+    OtlpKvlistValue? KvlistValue);
+
+public record OtlpArrayValue(List<OtlpValue>? Values);
+public record OtlpKvlistValue(List<OtlpAttribute>? Values);
 public record OtlpStatus(int Code, string? Message);
 
 // Maps OTLP spans that follow the OpenTelemetry GenAI conventions into our own
@@ -59,12 +78,24 @@ public static class Otlp
         return traces;
     }
 
+    const string InferenceDetailsEvent = "gen_ai.client.inference.operation.details";
+
     static Mapped Map(OtlpSpan span)
     {
         // last value wins; an exporter sending a key twice shouldn't crash ingest
         var attr = new Dictionary<string, OtlpValue?>(StringComparer.Ordinal);
         foreach (var a in span.Attributes ?? [])
             attr[a.Key] = a.Value;
+
+        // Some instrumentation keeps the message content off the span itself and puts it
+        // on a gen_ai.client.inference.operation.details event instead; fall back to that
+        // without letting it override anything the span already has.
+        foreach (var ev in span.Events ?? [])
+        {
+            if (ev.Name != InferenceDetailsEvent) continue;
+            foreach (var a in ev.Attributes ?? [])
+                attr.TryAdd(a.Key, a.Value);
+        }
 
         var model = Str(attr, "gen_ai.response.model") ?? Str(attr, "gen_ai.request.model");
         var inTokens = Long(attr, "gen_ai.usage.input_tokens") ?? Long(attr, "gen_ai.usage.prompt_tokens");
@@ -79,10 +110,10 @@ public static class Otlp
         var toolName = Str(attr, "gen_ai.tool.name") ?? Str(attr, "mcp.tool.name") ?? Str(attr, "mcp.method.name");
         var prompt = kind is "tool" or "mcp"
             ? Str(attr, "gen_ai.tool.call.arguments") ?? Str(attr, "mcp.request.params")
-            : Str(attr, "gen_ai.prompt");
+            : RenderMessages(attr, "gen_ai.input.messages") ?? Str(attr, "gen_ai.prompt");
         var completion = kind is "tool" or "mcp"
             ? Str(attr, "gen_ai.tool.message") ?? Str(attr, "mcp.response.result")
-            : Str(attr, "gen_ai.completion");
+            : RenderMessages(attr, "gen_ai.output.messages") ?? Str(attr, "gen_ai.completion");
 
         var s = new IngestSpan(
             span.SpanId ?? Guid.NewGuid().ToString("N"),
@@ -98,7 +129,7 @@ public static class Otlp
             completion,
             span.Status?.Code == 2 ? span.Status.Message ?? "error" : null);
 
-        return new Mapped(s, Str(attr, "gen_ai.system"));
+        return new Mapped(s, Str(attr, "gen_ai.provider.name") ?? Str(attr, "gen_ai.system"));
     }
 
     static string Kind(Dictionary<string, OtlpValue?> attr, string? model)
@@ -142,4 +173,67 @@ public static class Otlp
 
     static long Nanos(string? value) =>
         long.TryParse(value, out var n) ? n / 1_000_000 : 0;
+
+    // gen_ai.input.messages / gen_ai.output.messages carry a chat-history array (see the
+    // GenAI semconv). Exporters put that either as structured arrayValue/kvlistValue
+    // attributes, or as a plain JSON-encoded string - support both and flatten it into
+    // the same readable transcript text the old gen_ai.prompt/completion strings gave us.
+    static string? RenderMessages(Dictionary<string, OtlpValue?> attr, string key)
+    {
+        if (!attr.TryGetValue(key, out var v) || v is null) return null;
+
+        var node = ToNode(v);
+        if (node is JsonValue str && str.TryGetValue<string>(out var raw))
+        {
+            try { node = JsonNode.Parse(raw); }
+            catch { return raw; }
+        }
+        if (node is not JsonArray messages) return node?.ToJsonString();
+
+        var lines = new List<string>();
+        foreach (var msg in messages)
+        {
+            var role = msg?["role"]?.GetValue<string>() ?? "?";
+            if (msg?["parts"] is not JsonArray parts)
+            {
+                lines.Add($"{role}: {msg?.ToJsonString()}");
+                continue;
+            }
+            foreach (var part in parts)
+            {
+                var type = part?["type"]?.GetValue<string>();
+                var text = type switch
+                {
+                    "text" => part?["content"]?.GetValue<string>(),
+                    "tool_call" => $"call {part?["name"]?.GetValue<string>()}({part?["arguments"]?.ToJsonString()})",
+                    "tool_call_response" => $"-> {part?["response"]?.ToJsonString()}",
+                    _ => part?.ToJsonString(),
+                };
+                lines.Add($"{role}: {text}");
+            }
+        }
+        return string.Join('\n', lines);
+    }
+
+    static JsonNode? ToNode(OtlpValue? v)
+    {
+        if (v is null) return null;
+        if (v.StringValue is not null) return JsonValue.Create(v.StringValue);
+        if (v.IntValue is not null) return long.TryParse(v.IntValue, out var n) ? JsonValue.Create(n) : null;
+        if (v.DoubleValue is { } d) return JsonValue.Create(d);
+        if (v.BoolValue is { } b) return JsonValue.Create(b);
+        if (v.ArrayValue?.Values is { } items)
+        {
+            var arr = new JsonArray();
+            foreach (var item in items) arr.Add(ToNode(item));
+            return arr;
+        }
+        if (v.KvlistValue?.Values is { } fields)
+        {
+            var obj = new JsonObject();
+            foreach (var f in fields) obj[f.Key] = ToNode(f.Value);
+            return obj;
+        }
+        return null;
+    }
 }

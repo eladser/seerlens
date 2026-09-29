@@ -52,12 +52,12 @@ public sealed class TraceStore
             """);
     }
 
-    // Stores the trace and its spans, pricing each llm span. Returns the list summary.
+    // Stores the trace and its spans, pricing each llm span. BatchSpanProcessor can split
+    // one trace across several OTLP exports, so trace-level totals are recomputed from every
+    // span on file for the id, not just the ones in this call - otherwise the last batch in
+    // wins and earlier tokens/cost/duration just vanish.
     public TraceSummary Add(IngestTrace t)
     {
-        long? promptTokens = null, completionTokens = null;
-        double? cost = null;
-
         var src = t.Spans ?? []; // a body that omits "spans" shouldn't NRE
         var spans = new List<SpanRow>(src.Count);
         foreach (var s in src)
@@ -66,37 +66,34 @@ public sealed class TraceStore
                 ? Pricing.CostFor(s.Model ?? t.Model, s.PromptTokens, s.CompletionTokens)
                 : null;
 
-            if (s.PromptTokens is { } p) promptTokens = (promptTokens ?? 0) + p;
-            if (s.CompletionTokens is { } c) completionTokens = (completionTokens ?? 0) + c;
-            if (spanCost is { } sc) cost = (cost ?? 0) + sc;
-
             spans.Add(new SpanRow(s.Id, s.ParentId, s.Name, s.Kind, s.StartedAt, s.DurationMs,
                 s.Model, s.PromptTokens, s.CompletionTokens, spanCost, s.PromptText, s.CompletionText, s.Error));
         }
 
-        var summary = new TraceSummary(t.Id, t.Name, t.StartedAt, t.DurationMs, t.Provider,
-            t.Model, t.Status, promptTokens, completionTokens, cost);
-
         using var db = Open();
         using var tx = db.BeginTransaction(); // rolls back if a span insert throws before Commit
 
+        // name/status aren't touched on conflict, so the first batch (which usually carries
+        // the root span) keeps naming the trace; provider/model fill in from later batches
+        // if the first one didn't have them yet.
         using (var cmd = db.CreateCommand())
         {
             cmd.CommandText = """
-                insert or replace into traces
+                insert into traces
                 (id, name, started_at, duration_ms, provider, model, status, prompt_tokens, completion_tokens, cost_usd)
-                values ($id, $name, $started, $dur, $provider, $model, $status, $pt, $ct, $cost);
+                values ($id, $name, $started, $dur, $provider, $model, $status, null, null, null)
+                on conflict(id) do update set
+                    started_at = min(traces.started_at, excluded.started_at),
+                    provider = coalesce(traces.provider, excluded.provider),
+                    model = coalesce(traces.model, excluded.model);
                 """;
-            Bind(cmd, "$id", summary.Id);
-            Bind(cmd, "$name", summary.Name);
-            Bind(cmd, "$started", summary.StartedAt);
-            Bind(cmd, "$dur", summary.DurationMs);
-            Bind(cmd, "$provider", summary.Provider);
-            Bind(cmd, "$model", summary.Model);
-            Bind(cmd, "$status", summary.Status);
-            Bind(cmd, "$pt", summary.PromptTokens);
-            Bind(cmd, "$ct", summary.CompletionTokens);
-            Bind(cmd, "$cost", summary.CostUsd);
+            Bind(cmd, "$id", t.Id);
+            Bind(cmd, "$name", t.Name);
+            Bind(cmd, "$started", t.StartedAt);
+            Bind(cmd, "$dur", t.DurationMs);
+            Bind(cmd, "$provider", t.Provider);
+            Bind(cmd, "$model", t.Model);
+            Bind(cmd, "$status", t.Status);
             cmd.ExecuteNonQuery();
         }
 
@@ -111,7 +108,7 @@ public sealed class TraceStore
                  $pt, $ct, $cost, $prompt, $completion, $error);
                 """;
             Bind(cmd, "$id", s.Id);
-            Bind(cmd, "$trace", summary.Id);
+            Bind(cmd, "$trace", t.Id);
             Bind(cmd, "$parent", s.ParentId);
             Bind(cmd, "$name", s.Name);
             Bind(cmd, "$kind", s.Kind);
@@ -125,6 +122,35 @@ public sealed class TraceStore
             Bind(cmd, "$completion", s.CompletionText);
             Bind(cmd, "$error", s.Error);
             cmd.ExecuteNonQuery();
+        }
+
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = """
+                update traces set
+                    duration_ms = coalesce((select max(started_at + duration_ms) - min(started_at) from spans where trace_id = $id), duration_ms),
+                    prompt_tokens = (select sum(prompt_tokens) from spans where trace_id = $id),
+                    completion_tokens = (select sum(completion_tokens) from spans where trace_id = $id),
+                    cost_usd = (select sum(cost_usd) from spans where trace_id = $id),
+                    status = case when exists(select 1 from spans where trace_id = $id and error is not null) then 'error' else status end
+                where id = $id;
+                """;
+            Bind(cmd, "$id", t.Id);
+            cmd.ExecuteNonQuery();
+        }
+
+        TraceSummary summary;
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = """
+                select id, name, started_at, duration_ms, provider, model, status,
+                       prompt_tokens, completion_tokens, cost_usd
+                from traces where id = $id;
+                """;
+            Bind(cmd, "$id", t.Id);
+            using var r = cmd.ExecuteReader();
+            r.Read();
+            summary = ReadSummary(r);
         }
 
         tx.Commit();
@@ -215,6 +241,17 @@ public sealed class TraceStore
         cmd.CommandText = sql;
         Bind(cmd, "$id", id);
         cmd.ExecuteNonQuery();
+    }
+
+    // A cheap month-to-date total, for checking the budget right after an ingest
+    // without paying for the full SpendReport breakdown.
+    public double MonthToDateCost(long monthStartMs)
+    {
+        using var db = Open();
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "select coalesce(sum(cost_usd), 0) from traces where started_at >= $month;";
+        Bind(cmd, "$month", monthStartMs);
+        return Convert.ToDouble(cmd.ExecuteScalar()); // sum() with no rows comes back as an integer 0
     }
 
     public Stats Stats()

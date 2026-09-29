@@ -7,18 +7,20 @@ COPY dashboard/ ./
 RUN npx vite build --outDir dist --emptyOutDir
 
 # publish the collector
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet publish src/Seerlens.Collector -c Release -o /app
 COPY --from=ui /ui/dist /app/ui
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app ./
 RUN mkdir -p /data
 ENV SEERLENS_URL=http://0.0.0.0:5005
 ENV SEERLENS_DB=/data/seerlens.db
+ENV SEERLENS_SETTINGS=/data/seerlens-settings.json
+ENV SEERLENS_EVALS_DIR=/data/evals
 EXPOSE 5005
 VOLUME ["/data"]
 ENTRYPOINT ["dotnet", "Seerlens.Collector.dll"]

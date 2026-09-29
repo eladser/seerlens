@@ -13,9 +13,10 @@ test('builds a genai span with model, tokens, and provider', () => {
   const attrs = attrsOf(span)
 
   assert.equal(attrs['gen_ai.request.model'].stringValue, 'gpt-4o')
-  assert.equal(attrs['gen_ai.system'].stringValue, 'openai')
+  assert.equal(attrs['gen_ai.provider.name'].stringValue, 'openai')
   assert.equal(attrs['gen_ai.usage.input_tokens'].intValue, '10')
-  assert.equal(attrs['gen_ai.prompt'].stringValue, 'hi')
+  assert.match(attrs['gen_ai.input.messages'].stringValue, /hi/)
+  assert.match(attrs['gen_ai.output.messages'].stringValue, /hello/)
 })
 
 test('reflects duration in the span timestamps', () => {
@@ -26,5 +27,5 @@ test('reflects duration in the span timestamps', () => {
 
 test('infers the provider from the model name', () => {
   const span = spanOf(buildPayload({ model: 'claude-3-5-sonnet' }))
-  assert.equal(attrsOf(span)['gen_ai.system'].stringValue, 'anthropic')
+  assert.equal(attrsOf(span)['gen_ai.provider.name'].stringValue, 'anthropic')
 })
