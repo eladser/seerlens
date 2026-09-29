@@ -26,3 +26,4 @@ __pycache__/
 
 # local runtime settings written by the collector
 seerlens-settings.json
+.env.publish
