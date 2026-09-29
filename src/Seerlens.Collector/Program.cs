@@ -29,8 +29,13 @@ builder.Services.AddSingleton(new AiProvider(builder.Configuration));
 builder.Services.AddSingleton(new SettingsStore(
     builder.Configuration["SEERLENS_SETTINGS"] ?? "seerlens-settings.json"));
 builder.Services.AddSingleton<Alerter>();
-builder.Services.AddSingleton(new GoldenSets(
-    builder.Configuration["SEERLENS_EVALS_DIR"] ?? Path.Combine(AppContext.BaseDirectory, "evals")));
+
+// A `dotnet tool update` wipes AppContext.BaseDirectory, so golden sets can't live
+// there by default; use a user data dir instead, seeded from the bundled samples
+// on first run. SEERLENS_EVALS_DIR still overrides this.
+var evalsDir = builder.Configuration["SEERLENS_EVALS_DIR"] ?? DefaultEvalsDir();
+SeedEvalsIfEmpty(evalsDir);
+builder.Services.AddSingleton(new GoldenSets(evalsDir));
 builder.Services.AddSingleton<LiveFeed>();
 builder.Services.AddHostedService<EvalScheduler>();
 
@@ -49,23 +54,51 @@ if (hasUi)
     app.UseStaticFiles(new StaticFileOptions { FileProvider = ui });
 }
 
-app.MapPost("/ingest", (IngestTrace trace, TraceStore store, LiveFeed live) =>
+app.MapPost("/ingest", (IngestTrace trace, TraceStore store, LiveFeed live, SettingsStore settings, Alerter alerter) =>
 {
     var summary = store.Add(trace);
     live.Publish(summary);
+    CheckBudget(store, settings, alerter);
     return Results.Accepted();
 });
 
-// Standard OpenTelemetry trace ingest, so any OTel-instrumented app can send
-// GenAI spans here with no Seerlens SDK.
-app.MapPost("/v1/traces", (OtlpRequest req, TraceStore store, LiveFeed live) =>
+// Standard OpenTelemetry trace ingest, so any OTel-instrumented app can send GenAI
+// spans here with no Seerlens SDK. Most exporters default to OTLP/HTTP protobuf,
+// not JSON, so accept both based on Content-Type.
+app.MapPost("/v1/traces", async (HttpRequest http, TraceStore store, LiveFeed live, SettingsStore settings, Alerter alerter) =>
 {
+    OtlpRequest req;
+    // most OTLP exporters gzip by default
+    Stream body = http.Headers.ContentEncoding.ToString().Contains("gzip", StringComparison.OrdinalIgnoreCase)
+        ? new System.IO.Compression.GZipStream(http.Body, System.IO.Compression.CompressionMode.Decompress)
+        : http.Body;
+    try
+    {
+        if (http.ContentType?.Contains("application/x-protobuf", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            using var ms = new MemoryStream();
+            await body.CopyToAsync(ms); // buffer first; Kestrel's body stream isn't sync-readable
+            var data = OpenTelemetry.Proto.Trace.V1.TracesData.Parser.ParseFrom(ms.ToArray());
+            req = OtlpProto.ToRequest(data);
+        }
+        else
+        {
+            req = await JsonSerializer.DeserializeAsync<OtlpRequest>(body, json) ?? new OtlpRequest(null);
+        }
+    }
+    catch (Exception e) when (e is Google.Protobuf.InvalidProtocolBufferException or JsonException or InvalidDataException)
+    {
+        return Results.BadRequest(new { error = "could not decode OTLP payload: " + e.Message });
+    }
+
     foreach (var trace in Otlp.ToTraces(req))
         live.Publish(store.Add(trace));
+    CheckBudget(store, settings, alerter);
     return Results.Ok(new { });
 });
 
-app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(limit ?? 200));
+// cap so a bogus limit=1000000 can't make the dashboard pull the whole db
+app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(Math.Clamp(limit ?? 200, 1, 1000)));
 
 app.MapGet("/api/traces/{id}", (string id, TraceStore store) =>
     store.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
@@ -274,6 +307,44 @@ if (hasUi)
 
 app.Run();
 return 0;
+
+// So the budget alert fires as soon as spend crosses the line, not just whenever
+// someone next opens the cost view. Cheap: a single sum query, and skipped
+// entirely if no budget is set.
+void CheckBudget(TraceStore store, SettingsStore settings, Alerter alerter)
+{
+    try
+    {
+        if (settings.GetBudget().MonthlyUsd is not { } cap) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        var mtd = store.MonthToDateCost(monthStart);
+        if (mtd >= cap)
+            _ = alerter.MaybeOverBudget(mtd, cap, $"{now.Year}-{now.Month:D2}");
+    }
+    catch (Exception e)
+    {
+        // a broken budget check must never fail the ingest that triggered it
+        app.Logger.LogWarning(e, "budget check after ingest failed");
+    }
+}
+
+static string DefaultEvalsDir() =>
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".seerlens", "evals");
+
+// The tool ships a few sample sets next to the binary; copy them into the evals
+// dir the first time it's empty, so there's something to look at out of the box.
+static void SeedEvalsIfEmpty(string dir)
+{
+    var bundled = Path.Combine(AppContext.BaseDirectory, "evals");
+    if (!Directory.Exists(bundled)) return;
+    if (Directory.Exists(dir) && Directory.EnumerateFiles(dir, "*.json").Any()) return;
+
+    Directory.CreateDirectory(dir);
+    foreach (var file in Directory.GetFiles(bundled, "*.json"))
+        File.Copy(file, Path.Combine(dir, Path.GetFileName(file)), overwrite: false);
+}
 
 static void LoadDotEnv()
 {

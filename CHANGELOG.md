@@ -2,6 +2,19 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.5.0 - 09-30
+
+- Trace totals (tokens, cost, duration) now accumulate across a trace's spans on every insert, so a trace split across several OTLP batches keeps the full total instead of the last batch overwriting it.
+- OTLP ingest also reads the current GenAI semconv keys: `gen_ai.provider.name`, `gen_ai.input.messages`/`gen_ai.output.messages` (structured message arrays, rendered as readable text), and the `gen_ai.client.inference.operation.details` span event. The older `gen_ai.system`/`gen_ai.prompt`/`gen_ai.completion` keys still work.
+- The .NET, Python, and JS SDKs now emit `gen_ai.provider.name` and structured `gen_ai.input.messages`/`gen_ai.output.messages`, and still send the older keys so collectors on 1.4 and earlier keep working.
+- `/v1/traces` accepts OTLP/HTTP protobuf (`Content-Type: application/x-protobuf`) as well as JSON, gzip-compressed or not. Payloads that can't be decoded get a 400.
+- Scheduled evals persist their last-run date, so a restart around the scheduled time doesn't trigger a second run the same day.
+- The budget alert now fires right after ingest when spend crosses the cap, not only when the cost view is opened.
+- Golden sets default to `~/.seerlens/evals`, seeded from the bundled sample sets the first time it's empty. `SEERLENS_EVALS_DIR` still overrides it.
+- `/api/traces` clamps `limit` to 1000. Failed alert webhook calls are logged instead of dropped.
+- The Docker image builds on .NET 10 again and keeps settings and golden sets in the `/data` volume.
+- Dependency updates: Microsoft.Extensions.AI.* to 10.10.1, Microsoft.SemanticKernel.Abstractions to 1.80.1, Microsoft.Data.Sqlite to 10.0.12, SQLitePCLRaw.bundle_e_sqlite3 to 3.0.5, JsonSchema.Net to 9.4.0, and minor npm bumps for the dashboard.
+
 ## 1.4.0 - 06-23
 
 - Scheduled evals: a golden set can run on its own once a day, set the time from the Settings page (or the `/api/schedules` endpoint). The run is scored and stored like a manual one, and a quality drop fires the existing regression webhook, so regressions surface without anyone remembering to look.

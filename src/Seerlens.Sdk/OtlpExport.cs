@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Seerlens.Sdk;
 
 // Turns a finished trace into an OTLP/HTTP JSON export that follows the
@@ -44,10 +46,14 @@ static class OtlpExport
                 Add(attrs, "mcp.response.result", s.CompletionText);
                 break;
             default: // llm
-                Add(attrs, "gen_ai.system", trace.Provider);
+                Add(attrs, "gen_ai.provider.name", trace.Provider);
                 Add(attrs, "gen_ai.request.model", s.Model);
                 AddInt(attrs, "gen_ai.usage.input_tokens", s.PromptTokens);
                 AddInt(attrs, "gen_ai.usage.output_tokens", s.CompletionTokens);
+                AddMessages(attrs, "gen_ai.input.messages", "user", s.PromptText);
+                AddMessages(attrs, "gen_ai.output.messages", "assistant", s.CompletionText);
+                // older collectors (1.4 and earlier) only read these
+                Add(attrs, "gen_ai.system", trace.Provider);
                 Add(attrs, "gen_ai.prompt", s.PromptText);
                 Add(attrs, "gen_ai.completion", s.CompletionText);
                 break;
@@ -67,6 +73,13 @@ static class OtlpExport
     static void AddInt(List<object> attrs, string key, long? value)
     {
         if (value is not null) attrs.Add(new { key, value = new { intValue = value.Value.ToString() } });
+    }
+
+    static void AddMessages(List<object> attrs, string key, string role, string? text)
+    {
+        if (text is null) return;
+        var json = JsonSerializer.Serialize(new[] { new { role, parts = new[] { new { type = "text", content = text } } } });
+        Add(attrs, key, json);
     }
 
     static string Nanos(long startedMs, double extraMs = 0) =>

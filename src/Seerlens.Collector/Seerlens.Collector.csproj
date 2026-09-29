@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>seerlens</ToolCommandName>
     <PackageId>Seerlens</PackageId>
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <Authors>Elad Sertshuk</Authors>
     <Description>Local-first DevTools for AI calls. See every LLM call your app makes: prompt, cost, tokens, latency, tool calls.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>
@@ -23,11 +23,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
     <!-- Override the native SQLite bundle to 3.x; the 2.1.11 it pulls in transitively has a
          high-severity advisory (NU1903 / GHSA-2m69-gcr7-jv3q). -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.2" />
+    <PackageReference Include="Grpc.Tools" Version="2.84.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Vendored opentelemetry-proto messages, just for decoding an http/protobuf
+       /v1/traces body; no gRPC service is generated. -->
+  <ItemGroup>
+    <Protobuf Include="Protos/opentelemetry/proto/trace/v1/trace.proto" ProtoRoot="Protos" GrpcServices="None" />
+    <Protobuf Include="Protos/opentelemetry/proto/common/v1/common.proto" ProtoRoot="Protos" GrpcServices="None" />
+    <Protobuf Include="Protos/opentelemetry/proto/resource/v1/resource.proto" ProtoRoot="Protos" GrpcServices="None" />
   </ItemGroup>
 
   <ItemGroup>

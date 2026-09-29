@@ -73,6 +73,25 @@ public class TraceStoreTests : IDisposable
     }
 
     [Fact]
+    public void A_trace_split_across_batches_accumulates_instead_of_overwriting()
+    {
+        // BatchSpanProcessor can flush a trace's spans across two separate OTLP exports.
+        var batch1 = new IngestTrace("split", "chat: gpt-4o", 1000, 400, "openai", "gpt-4o", "ok",
+            [new IngestSpan("s1", null, "chat", "llm", 1000, 400, "gpt-4o", 1000, 500, "hi", "hello", null)]);
+        var batch2 = new IngestTrace("split", "chat: gpt-4o", 1000, 600, "openai", "gpt-4o", "ok",
+            [new IngestSpan("s2", "s1", "lookupOrder", "tool", 1400, 600, null, null, null, null, null, null)]);
+
+        _store.Add(batch1);
+        var summary = _store.Add(batch2);
+
+        Assert.Equal(1000, summary.PromptTokens);
+        Assert.Equal(500, summary.CompletionTokens);
+        // 1000/1M*2.50 + 500/1M*10 = 0.0075, unchanged since the tool span isn't priced
+        Assert.Equal(0.0075, summary.CostUsd!.Value, 6);
+        Assert.Equal(2, _store.Get("split")!.Spans.Count);
+    }
+
+    [Fact]
     public void Stats_aggregates_traces()
     {
         _store.Add(Sample("t1", 1000));

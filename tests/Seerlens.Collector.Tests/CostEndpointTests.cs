@@ -34,6 +34,7 @@ public class CostEndpointTests : IClassFixture<CostEndpointTests.Factory>
     {
         readonly string _db = Path.Combine(Path.GetTempPath(), $"seerlens-costapi-{Guid.NewGuid():N}.db");
         readonly string _settings = Path.Combine(Path.GetTempPath(), $"seerlens-costapi-{Guid.NewGuid():N}.json");
+        readonly string _evalsDir = Path.Combine(Path.GetTempPath(), $"seerlens-costapi-{Guid.NewGuid():N}");
 
         protected override IHost CreateHost(IHostBuilder builder)
         {
@@ -42,6 +43,7 @@ public class CostEndpointTests : IClassFixture<CostEndpointTests.Factory>
                 {
                     ["SEERLENS_DB"] = _db,
                     ["SEERLENS_SETTINGS"] = _settings,
+                    ["SEERLENS_EVALS_DIR"] = _evalsDir,
                 }));
             return base.CreateHost(builder);
         }
@@ -51,6 +53,7 @@ public class CostEndpointTests : IClassFixture<CostEndpointTests.Factory>
             base.Dispose(disposing);
             try { File.Delete(_db); } catch { }
             try { File.Delete(_settings); } catch { }
+            try { Directory.Delete(_evalsDir, true); } catch { }
         }
     }
 }

@@ -6,7 +6,7 @@ A note on direction, because it shapes everything below. Live trace viewing is t
 
 That last part is the whole opening. Seerlens moves up the stack, from watching calls to **judging them, costing them, and catching regressions before they ship, with history that outlives a single run.** Tracing is the on-ramp. Evals and cost are the product.
 
-And there's a place to aim all of it. In the wider market this layer is crowded, but in .NET it's empty: the .NET AI stack traces calls and stops there, no quality scoring, no cost in dollars. So Seerlens leads **.NET-first**, evals and cost native to the ecosystem that has no other option, while OTLP ingest keeps the door open to any language. That's the identity the rest of this roadmap serves.
+And there's a place to aim all of it. In the wider market this layer is crowded. In .NET the parts exist on their own (Microsoft.Extensions.AI.Evaluation scores answers, the Aspire dashboard shows spans) but nothing ties scoring, history, cost in dollars and a CI gate together in one local tool. So Seerlens leads **.NET-first**, evals and cost native to the ecosystem that has no other option, while OTLP ingest keeps the door open to any language. That's the identity the rest of this roadmap serves.
 
 ## Shipped in 1.0
 
@@ -40,6 +40,12 @@ The 0.3 through 0.7 plan all landed:
 - **Scheduled evals.** A golden set runs on its own once a day, at a time you set from the dashboard. The run is scored and stored like a manual one, and a drop fires the regression webhook, so regressions surface without anyone remembering to look.
 - **Consensus judging.** The `consensus` scorer runs the judge several times and averages, then warns when the votes disagree, a more trustworthy verdict than one shot.
 - **Embedding-similarity scorer.** The `embedding` scorer scores cosine distance to a case's reference answer. Embeddings default to the chat provider, with `SEERLENS_EMBED_*` overrides for when the judge provider has none.
+
+## Shipped in 1.5
+
+- **Works with stock OpenTelemetry exporters.** `/v1/traces` takes OTLP/HTTP protobuf and gzip, the defaults most exporters ship with, and reads the current GenAI semantic conventions (`gen_ai.provider.name`, structured input/output messages).
+- **Correct totals for split traces.** Cost and tokens add up across every batch a trace arrives in.
+- **Budget alerts fire on ingest**, and scheduled evals survive restarts without running twice.
 
 ## What's next
 

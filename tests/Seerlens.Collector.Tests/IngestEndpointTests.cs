@@ -28,14 +28,30 @@ public class IngestEndpointTests : IClassFixture<IngestEndpointTests.Factory>
         Assert.Contains(list!, t => t.Id == "t-http");
     }
 
+    [Fact]
+    public async Task A_huge_limit_is_capped_instead_of_pulling_the_whole_db()
+    {
+        var client = _factory.CreateClient();
+
+        var list = await client.GetFromJsonAsync<List<TraceSummary>>("/api/traces?limit=1000000");
+
+        Assert.NotNull(list);
+        Assert.True(list!.Count <= 1000);
+    }
+
     public sealed class Factory : WebApplicationFactory<Program>
     {
         readonly string _db = Path.Combine(Path.GetTempPath(), $"seerlens-http-{Guid.NewGuid():N}.db");
+        readonly string _evalsDir = Path.Combine(Path.GetTempPath(), $"seerlens-http-{Guid.NewGuid():N}");
 
         protected override IHost CreateHost(IHostBuilder builder)
         {
             builder.ConfigureHostConfiguration(c =>
-                c.AddInMemoryCollection(new Dictionary<string, string?> { ["SEERLENS_DB"] = _db }));
+                c.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["SEERLENS_DB"] = _db,
+                    ["SEERLENS_EVALS_DIR"] = _evalsDir,
+                }));
             return base.CreateHost(builder);
         }
 
@@ -43,6 +59,7 @@ public class IngestEndpointTests : IClassFixture<IngestEndpointTests.Factory>
         {
             base.Dispose(disposing);
             try { File.Delete(_db); } catch { }
+            try { Directory.Delete(_evalsDir, true); } catch { }
         }
     }
 }

@@ -20,9 +20,10 @@ class SeerlensTests(unittest.TestCase):
 
         attrs = self._attrs()
         self.assertEqual(attrs["gen_ai.request.model"]["stringValue"], "gpt-4o")
-        self.assertEqual(attrs["gen_ai.system"]["stringValue"], "openai")
+        self.assertEqual(attrs["gen_ai.provider.name"]["stringValue"], "openai")
         self.assertEqual(attrs["gen_ai.usage.input_tokens"]["intValue"], "10")
-        self.assertEqual(attrs["gen_ai.prompt"]["stringValue"], "hi")
+        self.assertIn("hi", attrs["gen_ai.input.messages"]["stringValue"])
+        self.assertIn("hello", attrs["gen_ai.output.messages"]["stringValue"])
 
     def test_duration_is_reflected_in_span_times(self):
         seerlens.record(model="gpt-4o", duration_ms=200)
@@ -35,7 +36,7 @@ class SeerlensTests(unittest.TestCase):
             span.complete(prompt="q", completion="a", input_tokens=3, output_tokens=2)
 
         self.assertEqual(self._span()["name"], "ticket")
-        self.assertEqual(self._attrs()["gen_ai.system"]["stringValue"], "anthropic")
+        self.assertEqual(self._attrs()["gen_ai.provider.name"]["stringValue"], "anthropic")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ public class SchedulerTests : IDisposable
         var ai = new AiProvider(new ReplyClient("The capital is Paris."), "test");
         var settings = new SettingsStore(_settings);
         settings.SetSchedules([new Schedule("caps", "keyword", at)]);
-        return new EvalScheduler(settings, sets, ai, evals, new Alerter(settings), NullLogger<EvalScheduler>.Instance);
+        return new EvalScheduler(settings, sets, ai, evals, new Alerter(settings, NullLogger<Alerter>.Instance), NullLogger<EvalScheduler>.Instance);
     }
 
     [Fact]
@@ -45,6 +45,23 @@ public class SchedulerTests : IDisposable
         var runs = EvalStore.ForFile(_db).List("caps");
         Assert.Single(runs);
         Assert.Equal(1.0, runs[0].Score);   // answer contains the keyword
+    }
+
+    [Fact]
+    public async Task A_restart_after_the_scheduled_time_does_not_run_it_twice()
+    {
+        // simulates the process restarting: a fresh EvalScheduler backed by the same
+        // settings file should still see today's run as done.
+        var s1 = Build(new TimeOnly(9, 0));
+        await s1.Tick(CancellationToken.None, Noon);
+
+        var sets = new GoldenSets(_dir);
+        var ai = new AiProvider(new ReplyClient("The capital is Paris."), "test");
+        var s2 = new EvalScheduler(new SettingsStore(_settings), sets, ai, EvalStore.ForFile(_db),
+            new Alerter(new SettingsStore(_settings), NullLogger<Alerter>.Instance), NullLogger<EvalScheduler>.Instance);
+        await s2.Tick(CancellationToken.None, Noon);
+
+        Assert.Single(EvalStore.ForFile(_db).List("caps"));
     }
 
     [Fact]
@@ -64,7 +81,7 @@ public class SchedulerTests : IDisposable
         var settings = new SettingsStore(_settings);
         settings.SetSchedules([new Schedule("missing", "keyword", new TimeOnly(9, 0))]);
         var sched = new EvalScheduler(settings, new GoldenSets(_dir), ai, evals,
-            new Alerter(settings), NullLogger<EvalScheduler>.Instance);
+            new Alerter(settings, NullLogger<Alerter>.Instance), NullLogger<EvalScheduler>.Instance);
 
         await sched.Tick(CancellationToken.None, Noon);   // must not throw
         Assert.Empty(evals.List("missing"));

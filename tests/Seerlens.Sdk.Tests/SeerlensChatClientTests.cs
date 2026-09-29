@@ -106,6 +106,13 @@ public class SeerlensChatClientTests
         Assert.Contains("gen_ai.usage.input_tokens", json);
         Assert.Contains("mcp.tool.name", json);
         Assert.Contains("\"parentSpanId\":\"t1\"", json); // steps nested under the root
+
+        // current semconv: provider.name and structured input/output messages
+        Assert.Contains("gen_ai.provider.name", json);
+        Assert.Contains("gen_ai.input.messages", json);
+        Assert.Contains("gen_ai.output.messages", json);
+        Assert.Contains("hi", json);
+        Assert.Contains("there", json);
     }
 
     [Fact]

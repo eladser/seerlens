@@ -35,4 +35,18 @@ public class SettingsStoreTests : IDisposable
         fresh.SetBudget(new Budget(75));
         Assert.Equal("https://hooks.example/x", new SettingsStore(_path).GetAlerts().WebhookUrl);
     }
+
+    [Fact]
+    public void Last_run_date_survives_a_restart()
+    {
+        var s = new SettingsStore(_path);
+        Assert.Null(s.GetLastRun("caps keyword 09:00"));
+
+        s.SetLastRun("caps keyword 09:00", new DateOnly(2026, 6, 9));
+
+        var fresh = new SettingsStore(_path);
+        Assert.Equal(new DateOnly(2026, 6, 9), fresh.GetLastRun("caps keyword 09:00"));
+        // a different schedule key isn't touched
+        Assert.Null(fresh.GetLastRun("other keyword 09:00"));
+    }
 }

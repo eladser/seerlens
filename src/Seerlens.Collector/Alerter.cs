@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Seerlens.Collector;
 
 // Posts a heads-up to a webhook when answer quality regresses or spend crosses the
 // budget. Fire-and-forget: a webhook being down must never break an eval or ingest.
 // The payload carries a "text" field so a Slack incoming webhook works as-is.
-public sealed class Alerter(SettingsStore settings)
+public sealed class Alerter(SettingsStore settings, ILogger<Alerter> log)
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(5) };
 
@@ -39,10 +40,13 @@ public sealed class Alerter(SettingsStore settings)
         try
         {
             using var resp = await Http.PostAsJsonAsync(url, new { type, text, details });
+            if (!resp.IsSuccessStatusCode)
+                log.LogWarning("alert webhook returned {Status} for {Type}", (int)resp.StatusCode, type);
         }
-        catch
+        catch (Exception e)
         {
-            // a dead webhook is not our problem to crash over
+            // a dead webhook is not our problem to crash over, but it's worth knowing about
+            log.LogWarning(e, "alert webhook failed for {Type}", type);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -57,6 +58,16 @@ public class SetEndpointTests : IClassFixture<SetEndpointTests.Factory>
     readonly Factory _factory;
 
     public SetEndpointTests(Factory factory) => _factory = factory;
+
+    [Fact]
+    public async Task An_empty_evals_dir_gets_seeded_from_the_bundled_sets_on_startup()
+    {
+        var client = _factory.CreateClient();
+        var config = await client.GetFromJsonAsync<JsonElement>("/api/config");
+
+        // the bundled sample sets (agent, general, structured) shipped with the collector
+        Assert.True(config.GetProperty("setCount").GetInt32() >= 3);
+    }
 
     [Fact]
     public async Task Put_get_append_delete_round_trip()

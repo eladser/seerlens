@@ -18,7 +18,7 @@ Python and JavaScript SDKs ship to PyPI (`seerlens`) and npm (`seerlens`); see t
 |---|---|---|
 | `SEERLENS_URL` | `http://localhost:5005` | Address the collector binds to. |
 | `SEERLENS_DB` | `seerlens.db` | SQLite file for traces and eval runs. |
-| `SEERLENS_EVALS_DIR` | `./evals` next to the binary | Folder the golden sets are loaded from and saved to. |
+| `SEERLENS_EVALS_DIR` | `~/.seerlens/evals` | Folder the golden sets are loaded from and saved to. Seeded from the bundled sample sets the first time it's empty. |
 | `SEERLENS_SETTINGS` | `seerlens-settings.json` | Where the budget and alert settings are stored. |
 | `SEERLENS_PRICING_FILE` | none | JSON of `{ "model": { "in": 1.0, "out": 2.0 } }` (USD per 1M tokens) to override or extend the built-in prices. |
 | `SEERLENS_AI_BASE_URL` | none | OpenAI-compatible endpoint used to run evals and comparisons (Groq, Gemini, OpenAI, ...). |
@@ -74,7 +74,7 @@ A set is `{ "name": "...", "cases": [ ... ] }`. Each case:
 The collector listens on `SEERLENS_URL`. Traces are normalized into one model whether they arrive as OTLP or the legacy JSON contract.
 
 **Ingest**
-- `POST /v1/traces` - OpenTelemetry OTLP/HTTP JSON. What every SDK posts.
+- `POST /v1/traces` - OpenTelemetry OTLP/HTTP. Accepts JSON or protobuf (`Content-Type: application/x-protobuf`), whichever your exporter sends. What every SDK posts.
 - `POST /ingest` - legacy simple JSON. Kept for compatibility.
 
 **Traces**

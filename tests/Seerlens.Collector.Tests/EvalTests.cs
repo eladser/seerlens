@@ -81,11 +81,16 @@ public class EvalEndpointTests : IClassFixture<EvalEndpointTests.Factory>
     public sealed class Factory : WebApplicationFactory<Program>
     {
         readonly string _db = Path.Combine(Path.GetTempPath(), $"seerlens-evalhttp-{Guid.NewGuid():N}.db");
+        readonly string _evalsDir = Path.Combine(Path.GetTempPath(), $"seerlens-evalhttp-{Guid.NewGuid():N}");
 
         protected override IHost CreateHost(IHostBuilder builder)
         {
             builder.ConfigureHostConfiguration(c =>
-                c.AddInMemoryCollection(new Dictionary<string, string?> { ["SEERLENS_DB"] = _db }));
+                c.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["SEERLENS_DB"] = _db,
+                    ["SEERLENS_EVALS_DIR"] = _evalsDir,
+                }));
             return base.CreateHost(builder);
         }
 
@@ -93,6 +98,7 @@ public class EvalEndpointTests : IClassFixture<EvalEndpointTests.Factory>
         {
             base.Dispose(disposing);
             try { File.Delete(_db); } catch { }
+            try { Directory.Delete(_evalsDir, true); } catch { }
         }
     }
 }

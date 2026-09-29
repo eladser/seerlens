@@ -102,16 +102,27 @@ def _post(payload):
 
 def _attrs(model, prompt, completion, in_tokens, out_tokens, system):
     pairs = [
-        ("gen_ai.system", system or _provider(model)),
+        ("gen_ai.provider.name", system or _provider(model)),
         ("gen_ai.request.model", model),
+        # older collectors (1.4 and earlier) only read these
+        ("gen_ai.system", system or _provider(model)),
         ("gen_ai.prompt", prompt),
         ("gen_ai.completion", completion),
     ]
     out = [{"key": k, "value": {"stringValue": str(v)}} for k, v in pairs if v]
+    if prompt:
+        out.append(_message_attr("gen_ai.input.messages", "user", prompt))
+    if completion:
+        out.append(_message_attr("gen_ai.output.messages", "assistant", completion))
     for k, v in (("gen_ai.usage.input_tokens", in_tokens), ("gen_ai.usage.output_tokens", out_tokens)):
         if v is not None:
             out.append({"key": k, "value": {"intValue": str(v)}})
     return out
+
+
+def _message_attr(key, role, text):
+    payload = json.dumps([{"role": role, "parts": [{"type": "text", "content": text}]}])
+    return {"key": key, "value": {"stringValue": payload}}
 
 
 def _provider(model):
