@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Seerlens.Collector;
 
-// Rough public list prices, USD per 1M tokens, as of mid-2026.
+// Rough public list prices, USD per 1M tokens, checked November 2026.
 // Good enough to spot expensive calls; not billing-grade. Prices move, so you can
 // override or extend the table with a JSON file via SEERLENS_PRICING_FILE
 // ({ "model": { "in": 1.0, "out": 2.0 } }).
@@ -15,17 +15,37 @@ public static class Pricing
         // OpenAI
         ["gpt-5.5"] = new(5.00, 30.00),
         ["gpt-5.4"] = new(2.50, 15.00),
+        ["gpt-5.4-mini"] = new(0.75, 4.50),
+        ["gpt-5.4-nano"] = new(0.20, 1.25),
+        ["gpt-5.2"] = new(1.75, 14.00),
+        ["gpt-5.1"] = new(1.25, 10.00),
+        ["gpt-5"] = new(1.25, 10.00),
+        ["gpt-5-mini"] = new(0.25, 2.00),
+        ["gpt-5-nano"] = new(0.05, 0.40),
         ["gpt-4.1"] = new(2.00, 8.00),
         ["gpt-4.1-mini"] = new(0.40, 1.60),
         ["gpt-4.1-nano"] = new(0.10, 0.40),
         ["gpt-4o"] = new(2.50, 10.00),
         ["gpt-4o-mini"] = new(0.15, 0.60),
         ["o3"] = new(2.00, 8.00),
+        ["o3-pro"] = new(20.00, 80.00),
         ["o4-mini"] = new(1.10, 4.40),
 
         // Anthropic
+        ["claude-fable-5-2"] = new(8.00, 40.00),
+        ["claude-fable-5-1"] = new(10.00, 50.00),
+        ["claude-fable-5"] = new(10.00, 50.00),
+        ["claude-mythos-5-2"] = new(8.00, 40.00),
+        ["claude-mythos-5-1"] = new(10.00, 50.00),
+        ["claude-mythos-5"] = new(10.00, 50.00),
+        ["claude-opus-5-5"] = new(4.00, 20.00),
+        ["claude-opus-5"] = new(5.00, 25.00),
         ["claude-opus-4-8"] = new(5.00, 25.00),
         ["claude-opus-4-7"] = new(5.00, 25.00),
+        ["claude-opus-4-6"] = new(5.00, 25.00),
+        ["claude-opus-4-5"] = new(5.00, 25.00),
+        ["claude-sonnet-5-5"] = new(2.00, 10.00),
+        ["claude-sonnet-5"] = new(2.00, 10.00),
         ["claude-sonnet-4-6"] = new(3.00, 15.00),
         ["claude-sonnet-4-5"] = new(3.00, 15.00),
         ["claude-haiku-4-5"] = new(1.00, 5.00),
