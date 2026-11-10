@@ -1,3 +1,6 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Seerlens.Collector;
 
 namespace Seerlens.Collector.Tests;
@@ -17,9 +20,9 @@ public class TraceStoreTests : IDisposable
     static IngestTrace Sample(string id, long startedAt, string model = "gpt-4o") => new(
         id, $"chat: {model}", startedAt, 820, "openai", model, "ok",
         [
-            new IngestSpan("s1", null, "chat", "llm", startedAt, 820, model, 1000, 500,
+            new IngestSpan($"{id}-s1", null, "chat", "llm", startedAt, 820, model, 1000, 500,
                 "hi there", "hello back", null),
-            new IngestSpan("s2", "s1", "lookupOrder", "tool", startedAt + 100, 40, null, null, null,
+            new IngestSpan($"{id}-s2", $"{id}-s1", "lookupOrder", "tool", startedAt + 100, 40, null, null, null,
                 null, null, null),
         ]);
 
@@ -102,5 +105,53 @@ public class TraceStoreTests : IDisposable
         Assert.Equal(2, stats.Traces);
         Assert.Equal(0.015, stats.TotalCostUsd, 6);
         Assert.Equal(820, stats.AvgDurationMs, 1);
+    }
+
+    TraceRetention Retention(string? days) => new(_store,
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["SEERLENS_RETENTION_DAYS"] = days })
+            .Build(),
+        NullLogger<TraceRetention>.Instance);
+
+    long SpanCount()
+    {
+        using var db = new SqliteConnection($"Data Source={_path}");
+        db.Open();
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "select count(*) from spans;";
+        return (long)cmd.ExecuteScalar()!;
+    }
+
+    [Fact]
+    public void Retention_drops_traces_older_than_n_days_with_their_spans()
+    {
+        var now = DateTimeOffset.UtcNow;
+        _store.Add(Sample("old", now.AddDays(-40).ToUnixTimeMilliseconds()));
+        _store.Add(Sample("recent", now.AddDays(-5).ToUnixTimeMilliseconds()));
+        var evals = EvalStore.ForFile(_path);
+        evals.Add(new EvalRunIn("r1", "caps", "gpt-4o", "keyword", now.AddDays(-40).ToUnixTimeMilliseconds(), 1.0, []));
+
+        var dropped = Retention("30").Prune(now);
+
+        Assert.Equal(1, dropped);
+        Assert.Equal(["recent"], _store.List().Select(t => t.Id).ToList());
+        Assert.Equal(2, _store.Get("recent")!.Spans.Count);
+        Assert.Equal(2, SpanCount());   // the old trace's spans went with it
+        Assert.Single(evals.List());    // same db file, but eval runs aren't traces
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("0")]
+    [InlineData("thirty")]
+    public void Retention_unset_or_invalid_deletes_nothing(string? days)
+    {
+        var now = DateTimeOffset.UtcNow;
+        _store.Add(Sample("old", now.AddDays(-400).ToUnixTimeMilliseconds()));
+
+        Assert.Equal(0, Retention(days).Prune(now));
+        Assert.Single(_store.List());
+        Assert.Equal(2, SpanCount());
     }
 }

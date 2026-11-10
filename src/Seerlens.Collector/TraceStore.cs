@@ -235,6 +235,30 @@ public sealed class TraceStore
         tx.Commit();
     }
 
+    // Drops traces that started before the cutoff (unix ms), spans first, and returns
+    // how many traces went.
+    public int DeleteOlderThan(long cutoffMs)
+    {
+        using var db = Open();
+        using var tx = db.BeginTransaction();
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = "delete from spans where trace_id in (select id from traces where started_at < $cutoff);";
+            Bind(cmd, "$cutoff", cutoffMs);
+            cmd.ExecuteNonQuery();
+        }
+
+        int n;
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = "delete from traces where started_at < $cutoff;";
+            Bind(cmd, "$cutoff", cutoffMs);
+            n = cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+        return n;
+    }
+
     static void Run(SqliteConnection db, string sql, string id)
     {
         using var cmd = db.CreateCommand();
