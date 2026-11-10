@@ -38,6 +38,7 @@ SeedEvalsIfEmpty(evalsDir);
 builder.Services.AddSingleton(new GoldenSets(evalsDir));
 builder.Services.AddSingleton<LiveFeed>();
 builder.Services.AddHostedService<EvalScheduler>();
+builder.Services.AddHostedService<TraceRetention>();
 
 var app = builder.Build();
 
