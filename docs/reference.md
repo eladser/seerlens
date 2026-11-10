@@ -21,13 +21,15 @@ Python and JavaScript SDKs ship to PyPI (`seerlens`) and npm (`seerlens`); see t
 | `SEERLENS_RETENTION_DAYS` | none | Keep this many days of traces. Older traces and their spans are dropped at startup and once a day. Unset or `0` keeps everything. Eval runs and settings aren't touched. Month-to-date spend is summed from stored traces, so a value under 31 can undercount the monthly budget. |
 | `SEERLENS_EVALS_DIR` | `~/.seerlens/evals` | Folder the golden sets are loaded from and saved to. Seeded from the bundled sample sets the first time it's empty. |
 | `SEERLENS_SETTINGS` | `seerlens-settings.json` | Where the budget and alert settings are stored. |
-| `SEERLENS_PRICING_FILE` | none | JSON of `{ "model": { "in": 1.0, "out": 2.0 } }` (USD per 1M tokens) to override or extend the built-in prices. |
+| `SEERLENS_PRICING_FILE` | none | JSON of `{ "model": { "in": 1.0, "out": 2.0 } }` (USD per 1M tokens) to override or extend the built-in prices. For a model priced by prompt size, add `"above": 100000, "inAbove": 0.5, "outAbove": 2.5`: a call with more input tokens than `above` is priced at `inAbove`/`outAbove` for the whole call, one at or under it at `in`/`out`. Entries without `above` price at `in`/`out` as before. |
 | `SEERLENS_AI_BASE_URL` | none | OpenAI-compatible endpoint used to run evals and comparisons (Groq, Gemini, OpenAI, ...). |
 | `SEERLENS_AI_KEY` | none | API key for that provider. Stays in the environment, never in the UI. |
 | `SEERLENS_AI_MODEL` | `gpt-4o-mini` | Default model for eval/compare runs. |
 | `SEERLENS_EMBED_MODEL` | `text-embedding-3-small` | Model the `embedding` scorer uses. |
 | `SEERLENS_EMBED_BASE_URL` | the chat `SEERLENS_AI_BASE_URL` | Endpoint for embeddings, set this when your judge provider has none. |
 | `SEERLENS_EMBED_KEY` | the chat `SEERLENS_AI_KEY` | API key for the embeddings endpoint. |
+
+Built-in rows for models priced by prompt size (Claude Haiku 5.5 over 100,000 input tokens, OpenAI's long-context models over 272K) work the same way. The threshold is checked against the span's `gen_ai.usage.input_tokens`, which the [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/registry/attributes/gen-ai.md#gen-ai-usage-input-tokens) say should include cached tokens (cache reads and cache writes). That's also how Anthropic counts Haiku 5.5's threshold. An exporter that leaves cached tokens out of that count gets the lower price for a long prompt that's mostly cache hits.
 
 A `.env.local` next to the collector is loaded automatically, so you don't have to export these by hand. Keep it out of source control.
 
