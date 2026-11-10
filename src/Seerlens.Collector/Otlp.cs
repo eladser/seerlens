@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace Seerlens.Collector;
@@ -225,7 +226,7 @@ public static class Otlp
         if (v is null) return null;
         if (v.StringValue is not null) return JsonValue.Create(v.StringValue);
         if (v.IntValue is not null) return long.TryParse(v.IntValue, out var n) ? JsonValue.Create(n) : null;
-        if (v.DoubleValue is { } d) return JsonValue.Create(d);
+        if (v.DoubleValue is { } d) return double.IsFinite(d) ? JsonValue.Create(d) : JsonValue.Create(d.ToString(CultureInfo.InvariantCulture));
         if (v.BoolValue is { } b) return JsonValue.Create(b);
         if (v.ArrayValue?.Values is { } items)
         {

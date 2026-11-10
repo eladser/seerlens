@@ -260,6 +260,32 @@ public class OtlpTests
     }
 
     [Fact]
+    public void A_nan_in_a_structured_tool_result_does_not_fail_the_batch()
+    {
+        var span = new Span
+        {
+            TraceId = ByteString.CopyFrom(Convert.FromHexString("0102030405060708090a0b0c0d0e0f10")),
+            SpanId = ByteString.CopyFrom(Convert.FromHexString("0102030405060708")),
+            Name = "execute_tool score",
+            StartTimeUnixNano = 1700000000000000000UL,
+            EndTimeUnixNano = 1700000000100000000UL,
+        };
+        span.Attributes.Add(new KeyValue { Key = "gen_ai.operation.name", Value = new AnyValue { StringValue = "execute_tool" } });
+        var result = new KeyValueList();
+        result.Values.Add(new KeyValue { Key = "score", Value = new AnyValue { DoubleValue = double.NaN } });
+        span.Attributes.Add(new KeyValue { Key = "gen_ai.tool.call.result", Value = new AnyValue { KvlistValue = result } });
+        var ss = new ScopeSpans();
+        ss.Spans.Add(span);
+        var rs = new ResourceSpans();
+        rs.ScopeSpans.Add(ss);
+        var data = new TracesData();
+        data.ResourceSpans.Add(rs);
+
+        var mapped = Assert.Single(Assert.Single(Otlp.ToTraces(OtlpProto.ToRequest(data))).Spans);
+        Assert.Equal("{\"score\":\"NaN\"}", mapped.CompletionText);
+    }
+
+    [Fact]
     public void Duplicate_attribute_keys_do_not_crash_and_last_wins()
     {
         const string payload = """
