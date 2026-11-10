@@ -18,7 +18,9 @@ let endpoint = null
 const pending = new Set()
 
 export function configure(collectorUrl) {
-  endpoint = collectorUrl.replace(/\/+$/, '') + '/v1/traces'
+  let end = collectorUrl.length
+  while (end > 0 && collectorUrl[end - 1] === '/') end--
+  endpoint = collectorUrl.slice(0, end) + '/v1/traces'
 }
 
 export function record({

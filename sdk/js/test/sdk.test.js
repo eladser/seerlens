@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildPayload } from '../index.js'
+import { buildPayload, configure, flush, record } from '../index.js'
 
 const spanOf = p => p.resourceSpans[0].scopeSpans[0].spans[0]
 const attrsOf = span => Object.fromEntries(span.attributes.map(a => [a.key, a.value]))
@@ -28,4 +28,20 @@ test('reflects duration in the span timestamps', () => {
 test('infers the provider from the model name', () => {
   const span = spanOf(buildPayload({ model: 'claude-3-5-sonnet' }))
   assert.equal(attrsOf(span)['gen_ai.provider.name'].stringValue, 'anthropic')
+})
+
+test('configure drops trailing slashes from the collector url', async () => {
+  const urls = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async url => { urls.push(url) }
+  try {
+    for (const u of ['http://localhost:5005', 'http://localhost:5005/', 'http://localhost:5005///']) {
+      configure(u)
+      record({ model: 'gpt-4o' })
+    }
+    await flush()
+  } finally {
+    globalThis.fetch = realFetch
+  }
+  assert.deepEqual(urls, Array(3).fill('http://localhost:5005/v1/traces'))
 })
