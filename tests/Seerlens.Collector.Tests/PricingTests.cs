@@ -57,4 +57,40 @@ public class PricingTests
         Assert.NotNull(dated);
         Assert.Equal(plain, dated);
     }
+
+    // 100k out tokens each time; the input count picks the tier for the whole call
+    [Theory]
+    [InlineData("claude-haiku-5-5", 100_000, 0.06)]       // up to 100k: $0.10 in, $0.50 out
+    [InlineData("claude-haiku-5-5", 100_001, 0.3000005)]  // over: $0.50 in, $2.50 out
+    [InlineData("gpt-6.1-sol", 272_000, 1.544)]           // <= 272K is short context: $2 in, $10 out
+    [InlineData("gpt-6.1-sol", 272_001, 2.588004)]        // long context: $4 in, $15 out
+    public void Tiered_models_price_by_input_tokens(string model, long inTokens, double expected)
+    {
+        var cost = Pricing.CostFor(model, inTokens, 100_000);
+        Assert.Equal(expected, cost!.Value, 6);
+    }
+
+    [Fact]
+    public void A_flat_model_keeps_one_rate_for_long_prompts()
+    {
+        // 300k in @ $0.75 + 100k out @ $4.50
+        var cost = Pricing.CostFor("gpt-5.4-mini", 300_000, 100_000);
+        Assert.Equal(0.675, cost!.Value, 6);
+    }
+
+    [Fact]
+    public void Pricing_file_entries_take_optional_tier_fields()
+    {
+        var rates = Pricing.ParseOverrides("""
+            {
+              "flat-model": { "in": 1.0, "out": 2.0 },
+              "tiered-model": { "in": 1.0, "out": 2.0, "above": 1000, "inAbove": 3.0, "outAbove": 4.0 }
+            }
+            """)!;
+
+        Assert.Null(rates["flat-model"].Above);
+        Assert.Equal(3.0, Pricing.CostAt(rates["flat-model"], 1_000_000, 1_000_000), 6);
+        Assert.Equal(2.001, Pricing.CostAt(rates["tiered-model"], 1000, 1_000_000), 6);
+        Assert.Equal(4.003003, Pricing.CostAt(rates["tiered-model"], 1001, 1_000_000), 6);
+    }
 }
