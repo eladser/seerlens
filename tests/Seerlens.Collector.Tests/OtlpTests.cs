@@ -188,6 +188,104 @@ public class OtlpTests
     }
 
     [Fact]
+    public void Reads_a_string_tool_call_result()
+    {
+        const string payload = """
+        {"resourceSpans":[{"scopeSpans":[{"spans":[
+          {"traceId":"t5","spanId":"s","parentSpanId":"","name":"execute_tool lookupOrder",
+           "startTimeUnixNano":"1700000000000000000","endTimeUnixNano":"1700000000100000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"execute_tool"}},
+             {"key":"gen_ai.tool.name","value":{"stringValue":"lookupOrder"}},
+             {"key":"gen_ai.tool.call.arguments","value":{"stringValue":"{\"order\":\"A-17\"}"}},
+             {"key":"gen_ai.tool.call.result","value":{"stringValue":"shipped"}}
+           ],"status":{"code":1}}
+        ]}]}]}
+        """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(payload, Web)!;
+
+        var span = Assert.Single(Assert.Single(Otlp.ToTraces(req)).Spans);
+        Assert.Equal("tool", span.Kind);
+        Assert.Equal("{\"order\":\"A-17\"}", span.PromptText);
+        Assert.Equal("shipped", span.CompletionText);
+    }
+
+    [Fact]
+    public void Renders_structured_tool_arguments_and_result_as_json()
+    {
+        const string payload = """
+        {"resourceSpans":[{"scopeSpans":[{"spans":[
+          {"traceId":"t6","spanId":"s","parentSpanId":"","name":"execute_tool lookupOrder",
+           "startTimeUnixNano":"1700000000000000000","endTimeUnixNano":"1700000000100000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"execute_tool"}},
+             {"key":"gen_ai.tool.name","value":{"stringValue":"lookupOrder"}},
+             {"key":"gen_ai.tool.call.arguments","value":{"kvlistValue":{"values":[
+               {"key":"order","value":{"stringValue":"A-17"}}
+             ]}}},
+             {"key":"gen_ai.tool.call.result","value":{"kvlistValue":{"values":[
+               {"key":"status","value":{"stringValue":"shipped"}},
+               {"key":"eta_days","value":{"intValue":"2"}}
+             ]}}}
+           ],"status":{"code":1}}
+        ]}]}]}
+        """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(payload, Web)!;
+
+        var span = Assert.Single(Assert.Single(Otlp.ToTraces(req)).Spans);
+        Assert.Equal("{\"order\":\"A-17\"}", span.PromptText);
+        Assert.Equal("{\"status\":\"shipped\",\"eta_days\":2}", span.CompletionText);
+    }
+
+    [Fact]
+    public void Still_reads_the_tool_message_key_from_older_sdks()
+    {
+        const string payload = """
+        {"resourceSpans":[{"scopeSpans":[{"spans":[
+          {"traceId":"t7","spanId":"s","parentSpanId":"","name":"lookupOrder",
+           "startTimeUnixNano":"1700000000000000000","endTimeUnixNano":"1700000000100000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"execute_tool"}},
+             {"key":"gen_ai.tool.name","value":{"stringValue":"lookupOrder"}},
+             {"key":"gen_ai.tool.call.arguments","value":{"stringValue":"A-17"}},
+             {"key":"gen_ai.tool.message","value":{"stringValue":"shipped"}}
+           ],"status":{"code":1}}
+        ]}]}]}
+        """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(payload, Web)!;
+
+        var span = Assert.Single(Assert.Single(Otlp.ToTraces(req)).Spans);
+        Assert.Equal("A-17", span.PromptText);
+        Assert.Equal("shipped", span.CompletionText);
+    }
+
+    [Fact]
+    public void A_nan_in_a_structured_tool_result_does_not_fail_the_batch()
+    {
+        var span = new Span
+        {
+            TraceId = ByteString.CopyFrom(Convert.FromHexString("0102030405060708090a0b0c0d0e0f10")),
+            SpanId = ByteString.CopyFrom(Convert.FromHexString("0102030405060708")),
+            Name = "execute_tool score",
+            StartTimeUnixNano = 1700000000000000000UL,
+            EndTimeUnixNano = 1700000000100000000UL,
+        };
+        span.Attributes.Add(new KeyValue { Key = "gen_ai.operation.name", Value = new AnyValue { StringValue = "execute_tool" } });
+        var result = new KeyValueList();
+        result.Values.Add(new KeyValue { Key = "score", Value = new AnyValue { DoubleValue = double.NaN } });
+        span.Attributes.Add(new KeyValue { Key = "gen_ai.tool.call.result", Value = new AnyValue { KvlistValue = result } });
+        var ss = new ScopeSpans();
+        ss.Spans.Add(span);
+        var rs = new ResourceSpans();
+        rs.ScopeSpans.Add(ss);
+        var data = new TracesData();
+        data.ResourceSpans.Add(rs);
+
+        var mapped = Assert.Single(Assert.Single(Otlp.ToTraces(OtlpProto.ToRequest(data))).Spans);
+        Assert.Equal("{\"score\":\"NaN\"}", mapped.CompletionText);
+    }
+
+    [Fact]
     public void Duplicate_attribute_keys_do_not_crash_and_last_wins()
     {
         const string payload = """

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace Seerlens.Collector;
@@ -107,12 +108,13 @@ public static class Otlp
 
         // For tool and MCP spans the interesting text is the call arguments and the
         // result, so map those into the prompt/completion slots the UI already shows.
+        // gen_ai.tool.message is what Seerlens SDKs 1.5.0 and older sent for the result.
         var toolName = Str(attr, "gen_ai.tool.name") ?? Str(attr, "mcp.tool.name") ?? Str(attr, "mcp.method.name");
         var prompt = kind is "tool" or "mcp"
-            ? Str(attr, "gen_ai.tool.call.arguments") ?? Str(attr, "mcp.request.params")
+            ? Text(attr, "gen_ai.tool.call.arguments") ?? Text(attr, "mcp.request.params")
             : RenderMessages(attr, "gen_ai.input.messages") ?? Str(attr, "gen_ai.prompt");
         var completion = kind is "tool" or "mcp"
-            ? Str(attr, "gen_ai.tool.message") ?? Str(attr, "mcp.response.result")
+            ? Text(attr, "gen_ai.tool.call.result") ?? Text(attr, "gen_ai.tool.message") ?? Text(attr, "mcp.response.result")
             : RenderMessages(attr, "gen_ai.output.messages") ?? Str(attr, "gen_ai.completion");
 
         var s = new IngestSpan(
@@ -162,6 +164,10 @@ public static class Otlp
 
     static string? Str(Dictionary<string, OtlpValue?> attr, string key) =>
         attr.TryGetValue(key, out var v) ? v?.StringValue : null;
+
+    // Tool arguments and results may come as structured values; show those as JSON.
+    static string? Text(Dictionary<string, OtlpValue?> attr, string key) =>
+        attr.TryGetValue(key, out var v) ? v?.StringValue ?? ToNode(v)?.ToJsonString() : null;
 
     static long? Long(Dictionary<string, OtlpValue?> attr, string key)
     {
@@ -220,7 +226,7 @@ public static class Otlp
         if (v is null) return null;
         if (v.StringValue is not null) return JsonValue.Create(v.StringValue);
         if (v.IntValue is not null) return long.TryParse(v.IntValue, out var n) ? JsonValue.Create(n) : null;
-        if (v.DoubleValue is { } d) return JsonValue.Create(d);
+        if (v.DoubleValue is { } d) return double.IsFinite(d) ? JsonValue.Create(d) : JsonValue.Create(d.ToString(CultureInfo.InvariantCulture));
         if (v.BoolValue is { } b) return JsonValue.Create(b);
         if (v.ArrayValue?.Values is { } items)
         {

@@ -38,6 +38,8 @@ static class OtlpExport
                 Add(attrs, "gen_ai.operation.name", "execute_tool");
                 Add(attrs, "gen_ai.tool.name", s.Name);
                 Add(attrs, "gen_ai.tool.call.arguments", s.PromptText);
+                Add(attrs, "gen_ai.tool.call.result", s.CompletionText);
+                // older collectors (1.5.0 and earlier) only read this
                 Add(attrs, "gen_ai.tool.message", s.CompletionText);
                 break;
             case "mcp":

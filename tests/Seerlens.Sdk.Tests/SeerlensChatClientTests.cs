@@ -116,6 +116,25 @@ public class SeerlensChatClientTests
     }
 
     [Fact]
+    public void Otlp_export_sends_the_tool_result_under_gen_ai_tool_call_result()
+    {
+        var trace = new TracePayload("t1", "support", 1000, 100, null, null, "ok",
+        [
+            new SpanPayload("s1", null, "lookupOrder", "tool", 1000, 50, null, null, null, "A-17", "shipped", null),
+        ]);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(OtlpExport.Build(trace)));
+        var tool = doc.RootElement.GetProperty("resourceSpans")[0].GetProperty("scopeSpans")[0].GetProperty("spans")[1];
+        var attrs = tool.GetProperty("attributes").EnumerateArray().ToDictionary(
+            a => a.GetProperty("key").GetString()!,
+            a => a.GetProperty("value").GetProperty("stringValue").GetString());
+
+        Assert.Equal("A-17", attrs["gen_ai.tool.call.arguments"]);
+        Assert.Equal("shipped", attrs["gen_ai.tool.call.result"]);
+        Assert.Equal("shipped", attrs["gen_ai.tool.message"]); // for 1.5.0 collectors
+    }
+
+    [Fact]
     public async Task Mcp_call_records_kind_arguments_and_result()
     {
         var sink = new CapturingSink();
