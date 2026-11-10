@@ -39,6 +39,16 @@ public class PricingTests
         Assert.True(cost > 0);
     }
 
+    [Theory]
+    [InlineData("claude-opus-5-5", 24.00)]           // $4 in + $20 out
+    [InlineData("gpt-5.4-mini", 5.25)]               // $0.75 in + $4.50 out
+    [InlineData("claude-opus-4-5-20251101", 30.00)]  // dated id, priced as claude-opus-4-5
+    public void Newer_models_price_per_million(string model, double expected)
+    {
+        var cost = Pricing.CostFor(model, 1_000_000, 1_000_000);
+        Assert.Equal(expected, cost!.Value, 4);
+    }
+
     [Fact]
     public void A_dated_claude_4_id_still_prices()
     {
