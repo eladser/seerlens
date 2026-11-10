@@ -2,6 +2,12 @@
 
 Notable changes per release. Dates are in 2026.
 
+## 1.6.0 - 11-10
+
+- Opt-in retention: set `SEERLENS_RETENTION_DAYS` and the collector drops traces (and their spans) older than that many days, at startup and then once a day. It's off unless set, and unset or `0` keeps everything. Eval runs and settings are never pruned. Month-to-date spend is summed from stored traces, so a value under 31 can undercount the budget.
+- Tool spans from exporters that follow the GenAI semconv now show their result: OTLP ingest reads `gen_ai.tool.call.result`, and structured tool arguments and results render as JSON. The older `gen_ai.tool.message` key still works, and the .NET SDK sends both. A NaN or infinite number inside a structured value is kept as text instead of failing the whole batch.
+- Built-in prices for Claude Fable 5/5.1/5.2, Mythos 5/5.1/5.2, Opus 5.5/5/4.6/4.5 and Sonnet 5.5/5, and for GPT-5.4 mini/nano, GPT-5.2, GPT-5.1, GPT-5, GPT-5 mini/nano and o3-pro. Existing prices are unchanged. Models priced by prompt length (Claude Haiku 5.5, GPT-6.x, GPT-5.6, GPT-5.5 Pro) aren't in the table, so add them with `SEERLENS_PRICING_FILE`.
+
 ## 1.5.0 - 09-30
 
 - Trace totals (tokens, cost, duration) now accumulate across a trace's spans on every insert, so a trace split across several OTLP batches keeps the full total instead of the last batch overwriting it.
