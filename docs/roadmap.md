@@ -47,6 +47,12 @@ The 0.3 through 0.7 plan all landed:
 - **Correct totals for split traces.** Cost and tokens add up across every batch a trace arrives in.
 - **Budget alerts fire on ingest**, and scheduled evals survive restarts without running twice.
 
+## Shipped in 1.6
+
+- **Opt-in retention.** Set `SEERLENS_RETENTION_DAYS` and the collector drops traces older than that many days, at startup and then once a day. It's off unless set, and eval runs and settings are never pruned.
+- **Tool results from standard OpenTelemetry exporters.** OTLP ingest reads `gen_ai.tool.call.result`, so tool spans from exporters that follow the GenAI semantic conventions show what the tool returned, and structured arguments and results render as JSON.
+- **Current model prices.** Built-in prices for Claude Fable, Mythos, Opus and Sonnet 5.x, and for more of the GPT-5 family plus o3-pro. Anything missing is still one line in a `SEERLENS_PRICING_FILE`.
+
 ## What's next
 
 ### Deeper in .NET, continued
@@ -55,7 +61,7 @@ The SK filter and DI extension shipped in 1.3. Next in the same direction: clean
 
 ### Scale, when you actually need it
 
-Sampling and a retention policy so the local store doesn't grow forever, and an optional non-SQLite backend for the rare case you outgrow one machine. Local-first stays the default; this is opt-in.
+Retention shipped in 1.6. Still to come: sampling so a busy app doesn't store every call, and an optional non-SQLite backend for the rare case you outgrow one machine. Local-first stays the default; this is opt-in.
 
 ## Later
 
