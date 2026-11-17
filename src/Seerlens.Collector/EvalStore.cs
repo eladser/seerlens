@@ -7,7 +7,12 @@ namespace Seerlens.Collector;
 public record EvalRunIn(
     string Id, string Set, string Target, string Scorer, long CreatedAt, double Score, List<EvalCaseIn> Cases);
 
-public record EvalCaseIn(string Input, string Answer, double Score);
+public record EvalCaseIn(
+    string Input,
+    string Answer,
+    double Score,
+    string? CaseId = null,
+    IReadOnlyList<Seerlens.Evals.EvalStep>? Steps = null);
 
 // Row on the trend; no per-case detail so the list stays light.
 public record EvalRunSummary(
