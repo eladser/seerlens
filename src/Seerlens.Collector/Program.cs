@@ -143,10 +143,10 @@ app.MapGet("/api/diff/step", (TraceStore traces, EvalStore evals, string? a, str
         return Results.Ok(new StepDiffResponse(
             TextDiff.Diff(x.PromptText, y.PromptText), TextDiff.Diff(x.CompletionText, y.CompletionText)));
     var one = x ?? y!;
-    return Results.Ok(new StepRawResponse(one.PromptText, one.CompletionText));
+    return Results.Ok(StepRawResponse.Of(one.PromptText, one.CompletionText));
 });
 
-app.MapDelete("/api/traces",(TraceStore store) => { store.Clear(); return Results.NoContent(); });
+app.MapDelete("/api/traces", (TraceStore store) => { store.Clear(); return Results.NoContent(); });
 
 app.MapDelete("/api/traces/{id}", (string id, TraceStore store) => { store.Delete(id); return Results.NoContent(); });
 

@@ -79,7 +79,8 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
                 response is null ? null : TextOf(response.Messages),
                 error?.Message,
                 response?.Usage?.CachedInputTokenCount,
-                response?.Usage?.ReasoningTokenCount);
+                response?.Usage?.ReasoningTokenCount,
+                Turns(messages));
 
             SeerlensTrace.Record(span);
         }
@@ -108,7 +109,8 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
                 completion.Length == 0 ? null : completion,
                 error?.Message,
                 usage?.CachedInputTokenCount,
-                usage?.ReasoningTokenCount);
+                usage?.ReasoningTokenCount,
+                Turns(messages));
 
             SeerlensTrace.Record(span);
         }
@@ -117,6 +119,9 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
             // recording must never affect the caller
         }
     }
+
+    static List<ChatTurn> Turns(IEnumerable<ChatMessage> messages) =>
+        messages.Select(m => new ChatTurn(m.Role.Value, m.Text ?? "")).ToList();
 
     static string PromptText(IEnumerable<ChatMessage> messages) =>
         string.Join("\n", messages.Select(m => $"{m.Role.Value}: {m.Text}"));

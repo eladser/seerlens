@@ -75,6 +75,17 @@ public class OtlpUsageTests
     static readonly (string Key, object Value) Model = ("gen_ai.request.model", "gpt-4o");
 
     [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Non_finite_double_usage_is_null_not_a_garbage_long(double v)
+    {
+        var s = Map(true, ("gen_ai.usage.input_tokens", v), ("gen_ai.usage.output_tokens", 7L));
+        Assert.Null(s.PromptTokens);
+        Assert.Equal(7, s.CompletionTokens);
+    }
+
+    [Theory]
     [InlineData("gen_ai.usage.cache_read.input_tokens", false)]
     [InlineData("gen_ai.usage.cache_read.input_tokens", true)]
     [InlineData("gen_ai.usage.cache_read_input_tokens", false)]

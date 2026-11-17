@@ -208,4 +208,4 @@ export type DiffResponse = {
 }
 
 export type StepDiff = { input: TextDiffResult; output: TextDiffResult }
-export type StepRaw = { input?: string | null; output?: string | null }
+export type StepRaw = { input?: string | null; output?: string | null; truncated?: boolean }

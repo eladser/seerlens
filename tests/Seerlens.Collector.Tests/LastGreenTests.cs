@@ -147,7 +147,7 @@ public class LastGreenTests : IDisposable
         Add("r2", 2000, "keyword", "s", C("q", 1));
         Add("r3", 3000, "keyword", "s", C("q", 1));
 
-        var ids = _store.Before("s", "keyword", 3000, 10).Select(r => r.Run.Id).ToList();
+        var ids = _store.Before("s", "keyword", 3000, 10).Select(r => r.Id).ToList();
 
         Assert.Equal(["r2", "r1"], ids);
         Assert.Single(_store.Before("s", "keyword", 3000, 1));

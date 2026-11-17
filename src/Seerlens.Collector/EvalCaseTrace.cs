@@ -16,7 +16,7 @@ public static class EvalCaseTrace
         if (steps is null)
         {
             spans.Add(new SpanRow("s0", null, "chat", "llm", r.CreatedAt, 0, r.Target, null, null,
-                Pricing.CostFor(r.Target, null, null), "user: " + c.Input, c.Answer, null));
+                null, "user: " + c.Input, c.Answer, null));
         }
         else
         {

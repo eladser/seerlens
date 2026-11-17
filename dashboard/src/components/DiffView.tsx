@@ -314,6 +314,7 @@ function Text({ title, body, part, changed, paired }: {
     <section>
       <h4>{title}{paired && !changed && <span className="unchanged"> unchanged</span>}</h4>
       {typeof v === 'string' ? <RawText text={v} /> : <TextDiff diff={v} />}
+      {typeof v === 'string' && 'truncated' in body && body.truncated && <p className="muted td-note">Truncated to the first 200,000 characters.</p>}
     </section>
   )
 }

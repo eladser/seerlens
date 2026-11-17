@@ -195,3 +195,30 @@ public class SeerlensChatClientTests
         Assert.Equal("stream dropped", trace.Spans[0].Error);
     }
 }
+
+[Collection("sink")]
+public class MessageRolesTests
+{
+    [Fact]
+    public async Task Otlp_input_messages_keep_each_role_instead_of_one_flattened_user_message()
+    {
+        var sink = new CapturingSink();
+        SeerlensTrace.UseSink(sink);
+
+        var client = new FakeChatClient("ok", "gpt-4o", 10, 2).UseSeerlens();
+        await client.GetResponseAsync([new ChatMessage(ChatRole.System, "be brief"), new ChatMessage(ChatRole.User, "hi")]);
+
+        var trace = Assert.Single(sink.Traces);
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(OtlpExport.Build(trace)));
+        var llm = doc.RootElement.GetProperty("resourceSpans")[0].GetProperty("scopeSpans")[0].GetProperty("spans")[1];
+        var raw = llm.GetProperty("attributes").EnumerateArray()
+            .First(a => a.GetProperty("key").GetString() == "gen_ai.input.messages")
+            .GetProperty("value").GetProperty("stringValue").GetString()!;
+        using var msgs = JsonDocument.Parse(raw);
+
+        Assert.Equal(["system", "user"], msgs.RootElement.EnumerateArray().Select(m => m.GetProperty("role").GetString()!).ToArray());
+        Assert.Equal("be brief", msgs.RootElement[0].GetProperty("parts")[0].GetProperty("content").GetString());
+        // the legacy gen_ai.prompt text is unchanged
+        Assert.Equal("system: be brief\nuser: hi", trace.Spans[0].PromptText);
+    }
+}

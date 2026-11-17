@@ -119,30 +119,46 @@ public sealed class EvalStore
     public const double Green = 0.8;
     public const int BaselineRuns = 50;
 
-    // Earlier runs of one set scored the same way, newest first.
-    public List<EvalRunDetail> Before(string set, string scorer, long createdAt, int limit)
+    // The green cases of one earlier run, in case order. Idx is the position in the stored run.
+    public record GreenCase(int Idx, string? Input, string? CaseId, double Score);
+    public record GreenRun(string Id, long CreatedAt, List<GreenCase> Cases);
+
+    // Green cases from the last `limit` earlier runs of one set scored the same way, newest run
+    // first. json_each pulls out just input, caseId and score, so the steps are never read into .NET.
+    public List<GreenRun> Before(string set, string scorer, long createdAt, int limit)
     {
         using var db = Open();
         var cmd = db.CreateCommand();
         cmd.CommandText = """
-            select id, set_name, target, scorer, created_at, score, cases_json
-            from eval_runs
-            where set_name = $set and scorer = $scorer and created_at < $at
-            order by created_at desc
-            limit $limit;
+            select r.id, r.created_at, j.key,
+                   json_extract(j.value, '$.input'), json_extract(j.value, '$.caseId'), json_extract(j.value, '$.score')
+            from (
+                select id, created_at, cases_json from eval_runs
+                where set_name = $set and scorer = $scorer and created_at < $at
+                order by created_at desc
+                limit $limit
+            ) r
+            left join json_each(r.cases_json) j on json_extract(j.value, '$.score') >= $green
+            order by r.created_at desc, r.id, j.key;
             """;
         cmd.Parameters.AddWithValue("$set", set);
         cmd.Parameters.AddWithValue("$scorer", scorer);
         cmd.Parameters.AddWithValue("$at", createdAt);
         cmd.Parameters.AddWithValue("$limit", limit);
+        cmd.Parameters.AddWithValue("$green", Green);
 
-        var rows = new List<EvalRunDetail>();
-        using var r = cmd.ExecuteReader();
-        while (r.Read())
+        var rows = new List<GreenRun>();
+        using var rd = cmd.ExecuteReader();
+        while (rd.Read())
         {
-            var cases = JsonSerializer.Deserialize<List<EvalCaseIn>>(r.GetString(6), Json) ?? [];
-            rows.Add(new EvalRunDetail(new EvalRunSummary(r.GetString(0), r.GetString(1), r.GetString(2),
-                r.GetString(3), r.GetInt64(4), r.GetDouble(5), cases.Count), cases));
+            var id = rd.GetString(0);
+            if (rows.Count == 0 || rows[^1].Id != id)
+                rows.Add(new GreenRun(id, rd.GetInt64(1), []));
+            if (rd.IsDBNull(2)) continue;
+            rows[^1].Cases.Add(new GreenCase(rd.GetInt32(2),
+                rd.IsDBNull(3) ? null : rd.GetString(3),
+                rd.IsDBNull(4) ? null : rd.GetString(4),
+                rd.GetDouble(5)));
         }
         return rows;
     }
@@ -152,7 +168,7 @@ public sealed class EvalStore
     {
         if (Get(id) is not { } d) return null;
 
-        List<EvalRunDetail>? earlier = null;
+        List<GreenRun>? earlier = null;
         var cases = d.Cases.Select(c =>
         {
             EvalBaseline? b = null;
@@ -166,20 +182,19 @@ public sealed class EvalStore
         return new EvalRunView(d.Run, cases);
     }
 
-    static EvalBaseline? LastGreen(EvalCaseIn c, List<EvalRunDetail> earlier)
+    static EvalBaseline? LastGreen(EvalCaseIn c, List<GreenRun> earlier)
     {
         foreach (var run in earlier)
         {
-            var idx = -1;
-            for (var i = 0; i < run.Cases.Count; i++)
+            GreenCase? hit = null;
+            foreach (var p in run.Cases)
             {
-                var p = run.Cases[i];
-                if (p.Score < Green || p.Input != c.Input) continue;
-                if (c.CaseId is not null && p.CaseId == c.CaseId) { idx = i; break; }
-                if (idx < 0) idx = i;
+                if (p.Input != c.Input) continue;
+                if (c.CaseId is not null && p.CaseId == c.CaseId) { hit = p; break; }
+                hit ??= p;
             }
-            if (idx >= 0)
-                return new EvalBaseline(run.Run.Id, idx, run.Cases[idx].Score, run.Run.CreatedAt);
+            if (hit is not null)
+                return new EvalBaseline(run.Id, hit.Idx, hit.Score, run.CreatedAt);
         }
         return null;
     }

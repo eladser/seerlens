@@ -39,18 +39,21 @@ public class RegressionAlertTests : IDisposable
 
         await Run("keyword", "0.4");     // 1.0
         await Run("llm-judge", "0.4");   // 0.4, a different scorer: nothing to compare against
-        await Task.Delay(400);
-        Assert.Equal(0, hook.Count);
-
         await Run("llm-judge", "0.1");   // 0.4 -> 0.1 on the same scorer
         await hook.WaitFor(1);
         Assert.Equal(1, hook.Count);
+        // the keyword -> llm-judge run (1.0 -> 0.4) must not have fired; only the 0.4 -> 0.1 drop did
+        var body = Assert.Single(hook.Bodies);
+        Assert.Contains("\"from\":0.4", body);
+        Assert.Contains("\"to\":0.1", body);
     }
 
     sealed class Hook : IDisposable
     {
         readonly HttpListener _l = new();
         int _count;
+        readonly System.Collections.Concurrent.ConcurrentQueue<string> _bodies = new();
+        public IReadOnlyCollection<string> Bodies => _bodies;
         public int Count => Volatile.Read(ref _count);
         public string Url { get; private set; } = "";
 
@@ -71,6 +74,8 @@ public class RegressionAlertTests : IDisposable
                     try
                     {
                         var ctx = await h._l.GetContextAsync();
+                        using (var rd = new StreamReader(ctx.Request.InputStream))
+                            h._bodies.Enqueue(await rd.ReadToEndAsync());
                         Interlocked.Increment(ref h._count);
                         ctx.Response.StatusCode = 200;
                         ctx.Response.Close();
