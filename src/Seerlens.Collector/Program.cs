@@ -143,10 +143,10 @@ app.MapGet("/api/diff/step", (TraceStore traces, EvalStore evals, string? a, str
         return Results.Ok(new StepDiffResponse(
             TextDiff.Diff(x.PromptText, y.PromptText), TextDiff.Diff(x.CompletionText, y.CompletionText)));
     var one = x ?? y!;
-    return Results.Ok(new StepRawResponse(one.PromptText, one.CompletionText));
+    return Results.Ok(StepRawResponse.Of(one.PromptText, one.CompletionText));
 });
 
-app.MapDelete("/api/traces",(TraceStore store) => { store.Clear(); return Results.NoContent(); });
+app.MapDelete("/api/traces", (TraceStore store) => { store.Clear(); return Results.NoContent(); });
 
 app.MapDelete("/api/traces/{id}", (string id, TraceStore store) => { store.Delete(id); return Results.NoContent(); });
 
@@ -266,7 +266,8 @@ app.MapGet("/api/cost", (TraceStore store, SettingsStore settings, Alerter alert
 {
     var now = DateTimeOffset.UtcNow;
     var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
-    var since = now.AddDays(-14).ToUnixTimeMilliseconds();
+    // 14 whole UTC days ending today, the same days SpendReport buckets by
+    var since = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero).AddDays(-13).ToUnixTimeMilliseconds();
 
     var spend = store.SpendReport(monthStart, since);
     var budget = settings.GetBudget();

@@ -43,7 +43,13 @@ public record TraceSummary(
     long? CompletionTokens,
     double? CostUsd);
 
-public record TraceDetail(TraceSummary Trace, IReadOnlyList<SpanRow> Spans);
+public record TraceDetail(TraceSummary Trace, IReadOnlyList<SpanRow> Spans)
+{
+    // Spans are already in execution order (eval case steps, whose ms timestamps tie),
+    // so the diff takes them as they are instead of sorting and grouping by start time.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool InOrder { get; init; }
+}
 
 public record SpanRow(
     string Id,

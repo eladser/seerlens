@@ -54,7 +54,8 @@ static class OtlpExport
                 AddInt(attrs, "gen_ai.usage.output_tokens", s.CompletionTokens);
                 AddInt(attrs, "gen_ai.usage.cache_read.input_tokens", s.CacheReadTokens);
                 AddInt(attrs, "gen_ai.usage.reasoning.output_tokens", s.ReasoningTokens);
-                AddMessages(attrs, "gen_ai.input.messages", "user", s.PromptText);
+                if (s.Input is { Count: > 0 } turns) AddMessages(attrs, "gen_ai.input.messages", turns);
+                else AddMessages(attrs, "gen_ai.input.messages", "user", s.PromptText);
                 AddMessages(attrs, "gen_ai.output.messages", "assistant", s.CompletionText);
                 // older collectors (1.4 and earlier) only read these
                 Add(attrs, "gen_ai.system", trace.Provider);
@@ -77,6 +78,12 @@ static class OtlpExport
     static void AddInt(List<object> attrs, string key, long? value)
     {
         if (value is not null) attrs.Add(new { key, value = new { intValue = value.Value.ToString() } });
+    }
+
+    static void AddMessages(List<object> attrs, string key, IReadOnlyList<ChatTurn> turns)
+    {
+        var msgs = turns.Select(t => new { role = t.Role, parts = new[] { new { type = "text", content = t.Text } } });
+        Add(attrs, key, JsonSerializer.Serialize(msgs));
     }
 
     static void AddMessages(List<object> attrs, string key, string role, string? text)

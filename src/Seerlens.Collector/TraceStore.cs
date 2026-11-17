@@ -299,26 +299,40 @@ public sealed class TraceStore
 
     // Drops traces that started before the cutoff (unix ms), spans first, and returns
     // how many traces went.
-    public int DeleteOlderThan(long cutoffMs)
+    // Deletes in chunks, one transaction each, so a big backlog doesn't hold the write lock for long.
+    public int DeleteOlderThan(long cutoffMs, int chunk = 5000)
     {
         using var db = Open();
-        using var tx = db.BeginTransaction();
-        using (var cmd = db.CreateCommand())
+        var total = 0;
+        while (true)
         {
-            cmd.CommandText = "delete from spans where trace_id in (select id from traces where started_at < $cutoff);";
-            Bind(cmd, "$cutoff", cutoffMs);
-            cmd.ExecuteNonQuery();
-        }
+            using var tx = db.BeginTransaction();
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = """
+                    delete from spans where trace_id in
+                        (select id from traces where started_at < $cutoff order by started_at limit $chunk);
+                    """;
+                Bind(cmd, "$cutoff", cutoffMs);
+                Bind(cmd, "$chunk", chunk);
+                cmd.ExecuteNonQuery();
+            }
 
-        int n;
-        using (var cmd = db.CreateCommand())
-        {
-            cmd.CommandText = "delete from traces where started_at < $cutoff;";
-            Bind(cmd, "$cutoff", cutoffMs);
-            n = cmd.ExecuteNonQuery();
+            int n;
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = """
+                    delete from traces where id in
+                        (select id from traces where started_at < $cutoff order by started_at limit $chunk);
+                    """;
+                Bind(cmd, "$cutoff", cutoffMs);
+                Bind(cmd, "$chunk", chunk);
+                n = cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+            total += n;
+            if (n < chunk) return total;
         }
-        tx.Commit();
-        return n;
     }
 
     static void Run(SqliteConnection db, string sql, string id)

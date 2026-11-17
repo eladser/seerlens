@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getEvalRun, getEvals, getSets, runEval, type SetsInfo } from '../api'
 import { downloadJson } from '../download'
+import { defaultSet } from '../evals'
 import { evalRef } from '../route'
 import { ago } from '../format'
 import type { EvalRun, EvalRunDetail } from '../types'
@@ -23,15 +24,17 @@ export function EvalsView({ onDiff }: { onDiff: (a: string, b: string) => void }
   const load = () => getEvals().then(setRuns).catch(() => {})
   const loadSets = () => getSets().then(setInfo).catch(() => {})
 
-  useEffect(() => { load() }, [])
-  useEffect(() => { loadSets() }, [])
-
-  // default the selected set once data arrives
+  // wait for both lists so the starting set doesn't depend on which request answers first
   useEffect(() => {
-    if (set) return
-    if (runs.length) setSet(runs[0].set)
-    else if (info?.sets.length) setSet(info.sets[0])
-  }, [runs, info, set])
+    let live = true
+    Promise.all([getEvals().catch(() => []), getSets().catch(() => null)]).then(([r, i]) => {
+      if (!live) return
+      setRuns(r)
+      setInfo(i)
+      setSet(s => s ?? defaultSet(r, i?.sets ?? []))
+    })
+    return () => { live = false }
+  }, [])
 
   useEffect(() => {
     if (!runId) return setDetail(null)

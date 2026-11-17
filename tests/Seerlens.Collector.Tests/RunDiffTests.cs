@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Seerlens.Collector;
+using Seerlens.Evals;
 
 namespace Seerlens.Collector.Tests;
 
@@ -318,9 +321,9 @@ public class RunDiffTests
     public void Totals_and_cache_hit_rate()
     {
         var a = Tr("a",
-            new SpanRow("1", null, "c", "llm", 0, 10, "m1", 1000, 100, 0.5, null, null, null, CacheReadTokens: 400, ReasoningTokens: 20),
+            new SpanRow("1", "ag", "c", "llm", 0, 10, "m1", 1000, 100, 0.5, null, null, null, CacheReadTokens: 400, ReasoningTokens: 20),
             // exclusive counts: cr + cw > input, so the denominator is in + cr + cw
-            new SpanRow("2", null, "c", "llm", 10, 10, "m2", 100, 50, 0.25, null, null, null, CacheReadTokens: 300, CacheWriteTokens: 100),
+            new SpanRow("2", "ag", "c", "llm", 10, 10, "m2", 100, 50, 0.25, null, null, null, CacheReadTokens: 300, CacheWriteTokens: 100),
             new SpanRow("3", null, "t", "tool", 20, 10, null, null, null, null, null, null, "x"),
             new SpanRow("ag", null, "invoke_agent", "agent", 0, 50, null, 5000, 5000, 9.0, null, null, null));
 
@@ -379,5 +382,114 @@ public class RunDiffTests
 
         Assert.Equal(250, d.Steps[1].A!.OffsetMs);
         Assert.Equal(300, d.Steps[1].B!.OffsetMs);
+    }
+
+    // calls each turn's tools (several in one turn when given), then answers
+    sealed class TurnScript(string[][] turns) : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, CancellationToken ct = default)
+        {
+            var turn = messages.Count(m => m.Role == ChatRole.Assistant);
+            if (turn >= turns.Length)
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "done")));
+            var calls = turns[turn].Select((t, i) => (AIContent)new FunctionCallContent($"c{turn}{i}", t)).ToList();
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, calls)));
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public object? GetService(Type t, object? key = null) => null;
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task Agent_eval_case_keeps_its_recorded_step_order()
+    {
+        // a fake model answers within a millisecond, so every step lands in one 10 ms window
+        var set = new GoldenSet("agent",
+        [
+            new GoldenCase("refund", "refund order 7",
+                Tools: [new AgentTool("lookup_order", "", "{}"), new AgentTool("send_email", "", "ok"), new AgentTool("issue_refund", "", "ok")],
+                ExpectedTools: ["lookup_order", "send_email", "issue_refund"]),
+        ]);
+        var run = await new AgentRunner(new TurnScript([["lookup_order"], ["send_email", "issue_refund"]])).Run(set, "gpt-4o");
+        var c = run.Cases[0];
+        var detail = new EvalRunDetail(
+            new EvalRunSummary(run.Id, run.Set, run.Target, run.Scorer, run.CreatedAt, run.Score, 1),
+            [new EvalCaseIn(c.Input, c.Answer, c.Score, c.CaseId, c.Steps)]);
+        var tr = EvalCaseTrace.Build(detail, 0)!;
+
+        string[] want = ["chat", "lookup_order", "chat", "send_email", "issue_refund", "chat"];
+        Assert.Equal(want, RunDiff.Order(tr).Select(s => s.Name));
+        Assert.Equal(want, RunDiff.Compare(tr, tr).Steps.Select(s => s.Name));
+    }
+
+    [Fact]
+    public void Eval_steps_with_equal_start_times_keep_their_order()
+    {
+        static EvalStep St(string kind, string? name) => new(kind, name, null, 1000, 0, null, null, null, null, null);
+        var detail = new EvalRunDetail(new EvalRunSummary("r", "s", "gpt-4o", "agent-tools", 1000, 1, 1),
+            [new EvalCaseIn("q", "a", 1, "c", [St("llm", null), St("tool", "zeta"), St("tool", "alpha"), St("llm", null)])]);
+
+        var tr = EvalCaseTrace.Build(detail, 0)!;
+
+        Assert.Equal(["chat", "zeta", "alpha", "chat"], RunDiff.Order(tr).Select(s => s.Name));
+    }
+
+    [Fact]
+    public void Otlp_trace_with_parallel_tool_calls_still_groups_them()
+    {
+        static string Span(string id, string parent, string name, long ms, string attrs) => $$"""
+            {"traceId":"par1","spanId":"{{id}}","parentSpanId":"{{parent}}","name":"{{name}}",
+             "startTimeUnixNano":"{{ms * 1_000_000}}","endTimeUnixNano":"{{(ms + 5) * 1_000_000}}",
+             "attributes":[{{attrs}}]}
+            """;
+        static string Attr(string k, string v) => $$"""{"key":"{{k}}","value":{"stringValue":"{{v}}"}""" + "}";
+        static string Op(string op) => Attr("gen_ai.operation.name", op);
+        var llm = Op("chat") + "," + Attr("gen_ai.request.model", "gpt-4o");
+        static string Tool(string n) => Op("execute_tool") + "," + Attr("gen_ai.tool.name", n);
+        // weather is launched first, 2 ms before calendar, under the same agent span
+        var json = $$"""
+            {"resourceSpans":[{"scopeSpans":[{"spans":[
+              {{Span("root", "", "invoke_agent", 1000, Op("invoke_agent"))}},
+              {{Span("c1", "root", "chat gpt-4o", 1001, llm)}},
+              {{Span("t1", "root", "execute_tool weather", 1300, Tool("weather"))}},
+              {{Span("t2", "root", "execute_tool calendar", 1302, Tool("calendar"))}},
+              {{Span("c2", "root", "chat gpt-4o", 1400, llm)}}
+            ]}]}]}
+            """;
+        var req = JsonSerializer.Deserialize<OtlpRequest>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var path = Path.Combine(Path.GetTempPath(), $"seerlens-order-{Guid.NewGuid():N}.db");
+        try
+        {
+            var store = TraceStore.ForFile(path);
+            foreach (var t in Otlp.ToTraces(req)) store.Add(t);
+
+            var names = RunDiff.Order(store.Get("par1")!).Select(s => s.Name);
+
+            Assert.Equal(["chat gpt-4o", "calendar", "weather", "chat gpt-4o"], names);
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { }
+        }
+    }
+
+    [Theory]
+    [InlineData("chat gpt-4o", "chat", "gpt-4o", "gpt-4o-mini", "chat")]
+    [InlineData("chat: gpt-4o", null, "gpt-4o", "gpt-4o-mini", "chat")]
+    [InlineData("gpt-4o", "chat", "gpt-4o", "gpt-4o-mini", "chat")]
+    // the name carries the request model, the span the response model
+    [InlineData("chat gpt-4o", "chat", "gpt-4o-2024-08-06", "gpt-4o-mini-2024-07-18", "chat")]
+    [InlineData("summarize", "chat", "gpt-4o", "gpt-4o-mini", "summarize")]
+    [InlineData("chat gpt-4o", "chat", "gpt-4o", "GPT-4o", "chat gpt-4o")]
+    public void Model_swap_row_name_leaves_the_old_model_out(string name, string? op, string ma, string mb, string want)
+    {
+        var d = RunDiff.Compare(
+            Tr("a", Sp("a1", "llm", name, 0, ma, op: op)),
+            Tr("b", Sp("b1", "llm", "chat " + mb, 0, mb, op: op)));
+
+        Assert.Equal(want, Assert.Single(d.Steps).Name);
     }
 }
