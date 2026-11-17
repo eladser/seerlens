@@ -4,6 +4,7 @@ using Seerlens.Sdk;
 
 namespace Seerlens.Sdk.Tests;
 
+[Collection("sink")]
 public class SeerlensChatClientTests
 {
     [Fact]

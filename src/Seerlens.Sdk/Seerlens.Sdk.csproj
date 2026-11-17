@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Seerlens.Sdk.Tests" />
+    <InternalsVisibleTo Include="Seerlens.SemanticKernel" />
   </ItemGroup>
 
 </Project>

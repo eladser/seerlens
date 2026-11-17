@@ -77,7 +77,9 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
                 response?.Usage?.OutputTokenCount,
                 PromptText(messages),
                 response is null ? null : TextOf(response.Messages),
-                error?.Message);
+                error?.Message,
+                response?.Usage?.CachedInputTokenCount,
+                response?.Usage?.ReasoningTokenCount);
 
             SeerlensTrace.Record(span);
         }
@@ -104,7 +106,9 @@ public sealed class SeerlensChatClient(IChatClient inner) : DelegatingChatClient
                 usage?.InputTokenCount, usage?.OutputTokenCount,
                 PromptText(messages),
                 completion.Length == 0 ? null : completion,
-                error?.Message);
+                error?.Message,
+                usage?.CachedInputTokenCount,
+                usage?.ReasoningTokenCount);
 
             SeerlensTrace.Record(span);
         }
