@@ -12,9 +12,9 @@ public sealed class EvalRunner(IChatClient target, IScorer scorer)
         var results = new List<EvalCaseResult>(set.Cases.Count);
         foreach (var c in set.Cases)
         {
-            var resp = await target.GetResponseAsync([new ChatMessage(ChatRole.User, c.Input)], cancellationToken: ct);
+            var (resp, step) = await StepRecorder.Call(target, [new ChatMessage(ChatRole.User, c.Input)], null, targetLabel, ct);
             var answer = string.Concat(resp.Messages.Select(m => m.Text)).Trim();
-            results.Add(new EvalCaseResult(c.Input, answer, await scorer.Score(c, answer)));
+            results.Add(new EvalCaseResult(c.Input, answer, await scorer.Score(c, answer), c.Id, [step]));
         }
 
         var mean = results.Count == 0 ? 0 : results.Average(r => r.Score);

@@ -20,6 +20,15 @@ public record EvalRunSummary(
 
 public record EvalRunDetail(EvalRunSummary Run, IReadOnlyList<EvalCaseIn> Cases);
 
+// The last earlier case in the same set and scorer that scored green.
+public record EvalBaseline(string RunId, int CaseIdx, double Score, long CreatedAt);
+
+public record EvalCaseOut(
+    string Input, string Answer, double Score, string? CaseId,
+    IReadOnlyList<Seerlens.Evals.EvalStep>? Steps, EvalBaseline? Baseline);
+
+public record EvalRunView(EvalRunSummary Run, IReadOnlyList<EvalCaseOut> Cases);
+
 public sealed class EvalStore
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -105,6 +114,74 @@ public sealed class EvalStore
         var summary = new EvalRunSummary(r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3),
             r.GetInt64(4), r.GetDouble(5), cases.Count);
         return new EvalRunDetail(summary, cases);
+    }
+
+    public const double Green = 0.8;
+    public const int BaselineRuns = 50;
+
+    // Earlier runs of one set scored the same way, newest first.
+    public List<EvalRunDetail> Before(string set, string scorer, long createdAt, int limit)
+    {
+        using var db = Open();
+        var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            select id, set_name, target, scorer, created_at, score, cases_json
+            from eval_runs
+            where set_name = $set and scorer = $scorer and created_at < $at
+            order by created_at desc
+            limit $limit;
+            """;
+        cmd.Parameters.AddWithValue("$set", set);
+        cmd.Parameters.AddWithValue("$scorer", scorer);
+        cmd.Parameters.AddWithValue("$at", createdAt);
+        cmd.Parameters.AddWithValue("$limit", limit);
+
+        var rows = new List<EvalRunDetail>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            var cases = JsonSerializer.Deserialize<List<EvalCaseIn>>(r.GetString(6), Json) ?? [];
+            rows.Add(new EvalRunDetail(new EvalRunSummary(r.GetString(0), r.GetString(1), r.GetString(2),
+                r.GetString(3), r.GetInt64(4), r.GetDouble(5), cases.Count), cases));
+        }
+        return rows;
+    }
+
+    // Run detail with a last-green baseline on every case that isn't green itself.
+    public EvalRunView? GetWithBaselines(string id)
+    {
+        if (Get(id) is not { } d) return null;
+
+        List<EvalRunDetail>? earlier = null;
+        var cases = d.Cases.Select(c =>
+        {
+            EvalBaseline? b = null;
+            if (c.Score < Green)
+            {
+                earlier ??= Before(d.Run.Set, d.Run.Scorer, d.Run.CreatedAt, BaselineRuns);
+                b = LastGreen(c, earlier);
+            }
+            return new EvalCaseOut(c.Input, c.Answer, c.Score, c.CaseId, c.Steps, b);
+        }).ToList();
+        return new EvalRunView(d.Run, cases);
+    }
+
+    static EvalBaseline? LastGreen(EvalCaseIn c, List<EvalRunDetail> earlier)
+    {
+        foreach (var run in earlier)
+        {
+            var idx = -1;
+            for (var i = 0; i < run.Cases.Count; i++)
+            {
+                var p = run.Cases[i];
+                if (p.Score < Green || p.Input != c.Input) continue;
+                if (c.CaseId is not null && p.CaseId == c.CaseId) { idx = i; break; }
+                if (idx < 0) idx = i;
+            }
+            if (idx >= 0)
+                return new EvalBaseline(run.Run.Id, idx, run.Cases[idx].Score, run.Run.CreatedAt);
+        }
+        return null;
     }
 
     SqliteConnection Open()

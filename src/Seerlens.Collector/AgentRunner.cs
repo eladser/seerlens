@@ -16,14 +16,14 @@ public sealed class AgentRunner(IChatClient client)
     {
         var results = new List<EvalCaseResult>(set.Cases.Count);
         foreach (var c in set.Cases)
-            results.Add(await RunCase(c, ct));
+            results.Add(await RunCase(c, targetLabel, ct));
 
         var mean = results.Count == 0 ? 0 : results.Average(r => r.Score);
         return new EvalRun(Guid.NewGuid().ToString("N"), set.Name, targetLabel, "agent-tools",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), mean, results);
     }
 
-    async Task<EvalCaseResult> RunCase(GoldenCase c, CancellationToken ct)
+    async Task<EvalCaseResult> RunCase(GoldenCase c, string targetLabel, CancellationToken ct)
     {
         // dedupe by name so a duplicate in the set can't throw when building the tools
         var tools = (c.Tools ?? [])
@@ -40,12 +40,14 @@ public sealed class AgentRunner(IChatClient client)
         var messages = new List<ChatMessage> { new(ChatRole.User, c.Input) };
         var called = new List<string>();
         var answer = "";
+        var steps = new List<EvalStep>();
 
         try
         {
             for (var turn = 0; turn < MaxTurns; turn++)
             {
-                var resp = await client.GetResponseAsync(messages, options, ct);
+                var (resp, step) = await StepRecorder.Call(client, messages, options, targetLabel, ct);
+                steps.Add(step);
 
                 // keep the latest text, so a run that hits the turn cap still has an answer
                 var text = string.Concat(resp.Messages.Select(m => m.Text)).Trim();
@@ -58,6 +60,7 @@ public sealed class AgentRunner(IChatClient client)
                 foreach (var call in calls)
                 {
                     called.Add(call.Name);
+                    steps.Add(StepRecorder.Tool(call));
                     var result = canned.GetValueOrDefault(call.Name, "");
                     messages.Add(new ChatMessage(ChatRole.Tool, [new FunctionResultContent(call.CallId ?? call.Name, result)]));
                 }
@@ -66,10 +69,10 @@ public sealed class AgentRunner(IChatClient client)
         catch (Exception e)
         {
             // a bad tool definition or a provider that can't do tool calls shouldn't take down the run
-            return new EvalCaseResult(c.Input, $"error: {e.Message}", 0);
+            return new EvalCaseResult(c.Input, $"error: {e.Message}", 0, c.Id, steps);
         }
 
         var score = ToolSequence.Score(c.ExpectedTools ?? [], called).Score;
-        return new EvalCaseResult(c.Input, answer, score);
+        return new EvalCaseResult(c.Input, answer, score, c.Id, steps);
     }
 }
