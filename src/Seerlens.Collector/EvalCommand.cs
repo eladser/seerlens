@@ -74,19 +74,19 @@ static class EvalCommand
     // Compare against the floor and the baseline, print the verdict, return the exit code.
     internal static int Gate(EvalRun run, Options opt)
     {
-        var pct = run.Score.ToString("P0", CultureInfo.InvariantCulture);
+        var pct = Pct(run.Score);
         var failed = false;
 
         if (opt.Min is { } min)
         {
             if (BelowFloor(run.Score, min))
             {
-                Console.WriteLine($"\nFAIL  score {pct} is below the floor of {min:P0}.");
+                Console.WriteLine($"\nFAIL  score {pct} is below the floor of {Pct(min)}.");
                 failed = true;
             }
             else
             {
-                Console.WriteLine($"\nPASS  score {pct} meets the floor of {min:P0}.");
+                Console.WriteLine($"\nPASS  score {pct} meets the floor of {Pct(min)}.");
             }
         }
 
@@ -98,12 +98,12 @@ static class EvalCommand
                 var drop = b.Score - run.Score;
                 if (Regressed(b.Score, run.Score, opt.Tolerance))
                 {
-                    Console.WriteLine($"REGRESSION  score dropped {drop:P0} versus the baseline ({b.Score:P0} -> {pct}), more than the {opt.Tolerance:P0} allowed.");
+                    Console.WriteLine($"REGRESSION  score dropped {Pct(drop)} versus the baseline ({Pct(b.Score)} -> {pct}), more than the {Pct(opt.Tolerance)} allowed.");
                     failed = true;
                 }
                 else
                 {
-                    Console.WriteLine($"baseline ok  {b.Score:P0} -> {pct} (allowed drop {opt.Tolerance:P0}).");
+                    Console.WriteLine($"baseline ok  {Pct(b.Score)} -> {pct} (allowed drop {Pct(opt.Tolerance)}).");
                 }
                 CheckCost(b, run, opt, ref failed);
             }
@@ -124,6 +124,9 @@ static class EvalCommand
 
         return failed ? 1 : 0;
     }
+
+    // one format everywhere; "P0" varies by culture ("100 %" vs "100%")
+    internal static string Pct(double v) => (v * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 
     internal static bool BelowFloor(double score, double min) => score + 1e-9 < min;
 
@@ -167,12 +170,12 @@ static class EvalCommand
         var line = $"${cost.Value.ToString("0.0000", CultureInfo.InvariantCulture)} vs ${b.CostUsd.Value.ToString("0.0000", CultureInfo.InvariantCulture)} baseline{delta}";
         if (opt.MaxCostIncrease is { } max && CostExceeded(b.CostUsd.Value, cost.Value, max))
         {
-            Console.WriteLine($"COST  {line}, more than the {max:P0} increase allowed.");
+            Console.WriteLine($"COST  {line}, more than the {Pct(max)} increase allowed.");
             failed = true;
         }
         else
         {
-            Console.WriteLine($"cost  {line}" + (opt.MaxCostIncrease is { } m ? $" (allowed increase {m:P0})." : "."));
+            Console.WriteLine($"cost  {line}" + (opt.MaxCostIncrease is { } m ? $" (allowed increase {Pct(m)})." : "."));
         }
     }
 
@@ -181,9 +184,9 @@ static class EvalCommand
         foreach (var c in run.Cases)
         {
             var mark = c.Score >= 0.999 ? "ok " : c.Score <= 0.001 ? "miss" : "    ";
-            Console.WriteLine($"  {c.Score,5:P0}  {mark}  {Trim(c.Input, 64)}");
+            Console.WriteLine($"  {Pct(c.Score),5}  {mark}  {Trim(c.Input, 64)}");
         }
-        Console.WriteLine($"\n  mean  {run.Score:P0}  across {run.Cases.Count} cases");
+        Console.WriteLine($"\n  mean  {Pct(run.Score)}  across {run.Cases.Count} cases");
     }
 
     static async Task TryReport(string url, EvalRun run)
@@ -230,7 +233,7 @@ static class EvalCommand
         {
             sb.AppendLine($"""  <testcase name="{Xml(Trim(c.Input, 80))}" classname="{Xml(run.Set)}">""");
             if (c.Score + 1e-9 < caseFloor)
-                sb.AppendLine($"""    <failure message="scored {c.Score:P0}, below {caseFloor:P0}">{Xml(c.Answer)}</failure>""");
+                sb.AppendLine($"""    <failure message="scored {Pct(c.Score)}, below {Pct(caseFloor)}">{Xml(c.Answer)}</failure>""");
             sb.AppendLine("  </testcase>");
         }
         sb.AppendLine("</testsuite>");
@@ -325,7 +328,7 @@ static class EvalCommand
 
         static double? Num(string? s, ref string? error)
         {
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var n)) return n;
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) && double.IsFinite(n)) return n;
             error = $"expected a number, got '{s}'";
             return null;
         }

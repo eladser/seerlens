@@ -59,7 +59,19 @@ public record DiffResponse(
 
 public record StepDiffResponse(TextDiffResult Input, TextDiffResult Output);
 
-public record StepRawResponse(string? Input, string? Output);
+// Each side is cut at TextDiff.MaxChars; Truncated says either one was.
+public record StepRawResponse(string? Input, string? Output, bool Truncated = false)
+{
+    public static StepRawResponse Of(string? input, string? output)
+    {
+        var cut = (input?.Length ?? 0) > TextDiff.MaxChars || (output?.Length ?? 0) > TextDiff.MaxChars;
+        return cut
+            ? new(Clip(input), Clip(output), true)
+            : new(input, output);
+    }
+
+    static string? Clip(string? s) => s is { Length: > TextDiff.MaxChars } ? s[..TextDiff.MaxChars] : s;
+}
 
 public static class RunDiff
 {
@@ -204,13 +216,30 @@ public static class RunDiff
     static List<string> Tools(List<SpanRow> steps) =>
         steps.Where(s => s.Kind is "tool" or "mcp").Select(s => s.Name).ToList();
 
+    // Same rule as TraceStore.Add: an agent span's usage is the sum of the calls under it,
+    // so it only counts when no llm span sits below it.
+    static List<SpanRow> LoneAgents(TraceDetail d)
+    {
+        var byId = new Dictionary<string, SpanRow>();
+        foreach (var s in d.Spans) byId.TryAdd(s.Id, s);
+        var above = new HashSet<string>();
+        foreach (var s in d.Spans.Where(s => s.Kind == "llm"))
+        {
+            var p = s.ParentId;
+            while (p is not null && above.Add(p) && byId.TryGetValue(p, out var up)) p = up.ParentId;
+        }
+        return d.Spans.Where(s => s.Kind == "agent" && !above.Contains(s.Id)).ToList();
+    }
+
     static RunTotals Totals(TraceDetail d, List<SpanRow> steps)
     {
         var llm = steps.Where(s => s.Kind == "llm").ToList();
-        double? cost = steps.Any(s => s.CostUsd is not null) ? steps.Sum(s => s.CostUsd ?? 0) : null;
+        var used = llm.Concat(LoneAgents(d)).ToList();
+        var costs = steps.Concat(used.Where(s => s.Kind == "agent"));
+        double? cost = costs.Any(s => s.CostUsd is not null) ? costs.Sum(s => s.CostUsd ?? 0) : null;
 
         double hit = 0, denom = 0;
-        foreach (var s in llm.Where(s => s.CacheReadTokens is not null))
+        foreach (var s in used.Where(s => s.CacheReadTokens is not null))
         {
             long i = s.PromptTokens ?? 0, cr = s.CacheReadTokens ?? 0, cw = s.CacheWriteTokens ?? 0;
             hit += cr;
@@ -219,8 +248,8 @@ public static class RunDiff
 
         return new RunTotals(
             d.Trace.DurationMs, cost,
-            llm.Sum(s => s.PromptTokens ?? 0), llm.Sum(s => s.CompletionTokens ?? 0),
-            llm.Sum(s => s.CacheReadTokens ?? 0), llm.Sum(s => s.CacheWriteTokens ?? 0), llm.Sum(s => s.ReasoningTokens ?? 0),
+            used.Sum(s => s.PromptTokens ?? 0), used.Sum(s => s.CompletionTokens ?? 0),
+            used.Sum(s => s.CacheReadTokens ?? 0), used.Sum(s => s.CacheWriteTokens ?? 0), used.Sum(s => s.ReasoningTokens ?? 0),
             denom > 0 ? hit / denom : null,
             steps.Count, steps.Count(s => s.Kind is "tool" or "mcp"), steps.Count(s => s.Error is not null),
             llm.Select(s => s.Model).Where(m => !string.IsNullOrEmpty(m)).Select(m => m!).Distinct().ToList());

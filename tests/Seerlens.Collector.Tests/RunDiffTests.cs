@@ -318,9 +318,9 @@ public class RunDiffTests
     public void Totals_and_cache_hit_rate()
     {
         var a = Tr("a",
-            new SpanRow("1", null, "c", "llm", 0, 10, "m1", 1000, 100, 0.5, null, null, null, CacheReadTokens: 400, ReasoningTokens: 20),
+            new SpanRow("1", "ag", "c", "llm", 0, 10, "m1", 1000, 100, 0.5, null, null, null, CacheReadTokens: 400, ReasoningTokens: 20),
             // exclusive counts: cr + cw > input, so the denominator is in + cr + cw
-            new SpanRow("2", null, "c", "llm", 10, 10, "m2", 100, 50, 0.25, null, null, null, CacheReadTokens: 300, CacheWriteTokens: 100),
+            new SpanRow("2", "ag", "c", "llm", 10, 10, "m2", 100, 50, 0.25, null, null, null, CacheReadTokens: 300, CacheWriteTokens: 100),
             new SpanRow("3", null, "t", "tool", 20, 10, null, null, null, null, null, null, "x"),
             new SpanRow("ag", null, "invoke_agent", "agent", 0, 50, null, 5000, 5000, 9.0, null, null, null));
 

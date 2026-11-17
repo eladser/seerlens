@@ -197,6 +197,8 @@ public static class Otlp
             return "mcp";
         if (operation == "execute_tool" || attr.ContainsKey("gen_ai.tool.name"))
             return "tool";
+        // the AI SDK wraps each model call in a "step N" container span; it has no model of its own
+        if (operation is "agent_step" or "step") return "agent";
         // an agent span reports the usage of the model calls under it, so it isn't an llm step
         if (operation is not null && (operation.StartsWith("invoke_", StringComparison.Ordinal) || operation == "create_agent"))
             return "agent";
@@ -237,7 +239,7 @@ public static class Otlp
     {
         if (!attr.TryGetValue(key, out var v) || v is null) return null;
         if (v.IntValue is { } n) return n;
-        if (v.DoubleValue is { } d) return (long)d;
+        if (v.DoubleValue is { } d && double.IsFinite(d)) return (long)d;
         return null;
     }
 

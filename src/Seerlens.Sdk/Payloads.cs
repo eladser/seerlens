@@ -25,4 +25,8 @@ record SpanPayload(
     string? CompletionText,
     string? Error,
     long? CacheReadTokens = null,
-    long? ReasoningTokens = null);
+    long? ReasoningTokens = null,
+    IReadOnlyList<ChatTurn>? Input = null);
+
+// One input message with its role kept apart, so the OTLP export can send them as a messages array.
+record ChatTurn(string Role, string Text);

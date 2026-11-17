@@ -12,6 +12,9 @@ public sealed class TraceRetention(TraceStore store, IConfiguration config, ILog
     {
         if (_days == 0) return;
 
+        // let the host finish starting before the first (possibly long) prune
+        await Task.Yield();
+
         while (!ct.IsCancellationRequested)
         {
             try { Prune(DateTimeOffset.UtcNow); }
@@ -27,7 +30,7 @@ public sealed class TraceRetention(TraceStore store, IConfiguration config, ILog
         // plain ms math so a huge N can't push a DateTimeOffset out of range
         var cutoff = now.ToUnixTimeMilliseconds() - _days * 86_400_000L;
         var n = store.DeleteOlderThan(cutoff);
-        log.LogInformation("retention dropped {Count} traces older than {Days} days", n, _days);
+        if (n > 0) log.LogInformation("retention dropped {Count} traces older than {Days} days", n, _days);
         return n;
     }
 
