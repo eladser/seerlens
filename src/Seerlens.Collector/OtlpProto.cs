@@ -20,8 +20,8 @@ public static class OtlpProto
         HexId(s.SpanId),
         s.ParentSpanId.IsEmpty ? null : HexId(s.ParentSpanId),
         s.Name,
-        s.StartTimeUnixNano.ToString(),
-        s.EndTimeUnixNano.ToString(),
+        (long)s.StartTimeUnixNano,
+        (long)s.EndTimeUnixNano,
         s.Attributes.Select(MapAttr).ToList(),
         s.Status is null ? null : new OtlpStatus((int)s.Status.Code, s.Status.Message is { Length: > 0 } m ? m : null),
         s.Events.Select(e => new OtlpSpanEvent(e.Name, e.Attributes.Select(MapAttr).ToList())).ToList());
@@ -31,7 +31,7 @@ public static class OtlpProto
     static OtlpValue? MapValue(AnyValue? v) => v?.ValueCase switch
     {
         AnyValue.ValueOneofCase.StringValue => new OtlpValue(v.StringValue, null, null, null, null, null),
-        AnyValue.ValueOneofCase.IntValue => new OtlpValue(null, v.IntValue.ToString(), null, null, null, null),
+        AnyValue.ValueOneofCase.IntValue => new OtlpValue(null, v.IntValue, null, null, null, null),
         AnyValue.ValueOneofCase.DoubleValue => new OtlpValue(null, null, v.DoubleValue, null, null, null),
         AnyValue.ValueOneofCase.BoolValue => new OtlpValue(null, null, null, v.BoolValue, null, null),
         AnyValue.ValueOneofCase.ArrayValue => new OtlpValue(null, null, null, null,

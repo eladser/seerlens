@@ -14,8 +14,8 @@ public record OtlpSpan(
     string? SpanId,
     string? ParentSpanId,
     string? Name,
-    string? StartTimeUnixNano,
-    string? EndTimeUnixNano,
+    long? StartTimeUnixNano,
+    long? EndTimeUnixNano,
     List<OtlpAttribute>? Attributes,
     OtlpStatus? Status,
     List<OtlpSpanEvent>? Events);
@@ -30,7 +30,7 @@ public record OtlpAttribute(string Key, OtlpValue? Value);
 // and gen_ai.output.messages carry structured message arrays instead of a flat string.
 public record OtlpValue(
     string? StringValue,
-    string? IntValue,
+    long? IntValue,
     double? DoubleValue,
     bool? BoolValue,
     OtlpArrayValue? ArrayValue,
@@ -172,13 +172,12 @@ public static class Otlp
     static long? Long(Dictionary<string, OtlpValue?> attr, string key)
     {
         if (!attr.TryGetValue(key, out var v) || v is null) return null;
-        if (v.IntValue is not null && long.TryParse(v.IntValue, out var n)) return n;
+        if (v.IntValue is { } n) return n;
         if (v.DoubleValue is { } d) return (long)d;
         return null;
     }
 
-    static long Nanos(string? value) =>
-        long.TryParse(value, out var n) ? n / 1_000_000 : 0;
+    static long Nanos(long? value) => (value ?? 0) / 1_000_000;
 
     // gen_ai.input.messages / gen_ai.output.messages carry a chat-history array (see the
     // GenAI semconv). Exporters put that either as structured arrayValue/kvlistValue
@@ -225,7 +224,7 @@ public static class Otlp
     {
         if (v is null) return null;
         if (v.StringValue is not null) return JsonValue.Create(v.StringValue);
-        if (v.IntValue is not null) return long.TryParse(v.IntValue, out var n) ? JsonValue.Create(n) : null;
+        if (v.IntValue is { } n) return JsonValue.Create(n);
         if (v.DoubleValue is { } d) return double.IsFinite(d) ? JsonValue.Create(d) : JsonValue.Create(d.ToString(CultureInfo.InvariantCulture));
         if (v.BoolValue is { } b) return JsonValue.Create(b);
         if (v.ArrayValue?.Values is { } items)
