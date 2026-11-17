@@ -25,6 +25,11 @@ export type Span = {
   promptText: string | null
   completionText: string | null
   error: string | null
+  cacheReadTokens?: number | null
+  cacheWriteTokens?: number | null
+  reasoningTokens?: number | null
+  operation?: string | null
+  params?: string | null
 }
 
 export type TraceDetail = {
@@ -48,7 +53,15 @@ export type EvalRun = {
   caseCount: number
 }
 
-export type EvalCase = { input: string; answer: string; score: number }
+export type EvalBaseline = { runId: string; caseIdx: number; score: number; createdAt: number }
+
+export type EvalCase = {
+  input: string
+  answer: string
+  score: number
+  caseId?: string | null
+  baseline?: EvalBaseline | null
+}
 
 export type EvalRunDetail = { run: EvalRun; cases: EvalCase[] }
 
@@ -82,10 +95,11 @@ export type CompareResult = {
   rows: CompareRow[]
 }
 
-export type ModelSpend = { model: string; costUsd: number; calls: number; tokens: number }
+export type ModelSpend = { model: string; costUsd: number; calls: number; tokens: number; cacheHitRate?: number | null }
 export type DaySpend = { date: string; costUsd: number }
 export type Spend = {
   monthToDateUsd: number
+  cacheHitRate?: number | null
   totalUsd: number
   byModel: ModelSpend[]
   daily: DaySpend[]
@@ -122,3 +136,76 @@ export type Config = {
   alerts: Alerts
   schedules: Schedule[]
 }
+
+export type RunTotals = {
+  durationMs: number
+  costUsd: number | null
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  reasoningTokens: number
+  cacheHitRate: number | null
+  steps: number
+  toolCalls: number
+  errors: number
+  models: string[]
+}
+
+export type StepView = {
+  spanId: string
+  model: string | null
+  operation: string | null
+  offsetMs: number
+  durationMs: number
+  promptTokens: number | null
+  completionTokens: number | null
+  cacheReadTokens: number | null
+  cacheWriteTokens: number | null
+  reasoningTokens: number | null
+  costUsd: number | null
+  error: string | null
+}
+
+export type WordPiece = { t: 'eq' | 'del' | 'ins'; text: string }
+
+export type TextRow = {
+  t: 'eq' | 'del' | 'ins' | 'mod' | 'skip'
+  aLine?: number | null
+  bLine?: number | null
+  a?: string | null
+  b?: string | null
+  aWords?: WordPiece[] | null
+  bWords?: WordPiece[] | null
+  skipped?: number | null
+}
+
+export type TextDiffResult = { rows: TextRow[]; tooLarge: boolean; sizeA?: number | null; sizeB?: number | null }
+
+export type ParamChange = { key: string; a: string | null; b: string | null }
+
+export type DiffStep = {
+  status: 'same' | 'changed' | 'removed' | 'added'
+  kind: string
+  name: string
+  a: StepView | null
+  b: StepView | null
+  changes: string[]
+  params: ParamChange[]
+  input?: TextDiffResult | null
+  output?: TextDiffResult | null
+}
+
+export type DiffResponse = {
+  a: TraceSummary
+  b: TraceSummary
+  totalsA: RunTotals
+  totalsB: RunTotals
+  toolsA: string[]
+  toolsB: string[]
+  truncated: boolean
+  steps: DiffStep[]
+}
+
+export type StepDiff = { input: TextDiffResult; output: TextDiffResult }
+export type StepRaw = { input?: string | null; output?: string | null }

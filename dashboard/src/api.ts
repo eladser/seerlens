@@ -1,5 +1,5 @@
 import type {
-  Alerts, Budget, CompareResult, Config, CostReport, EvalRun, EvalRunDetail, GoldenCase, GoldenSet,
+  Alerts, Budget, CompareResult, Config, CostReport, DiffResponse, StepDiff, StepRaw, EvalRun, EvalRunDetail, GoldenCase, GoldenSet,
   Schedule, Stats, ToolScoreResult, TraceDetail, TraceSummary,
 } from './types'
 
@@ -154,3 +154,31 @@ export async function compareModels(
   if (!r.ok) throw new Error(`compare failed: ${r.status}`)
   return r.json()
 }
+
+export class ApiError extends Error {
+  status: number
+  missing: string | null
+  constructor(status: number, message: string, missing: string | null) {
+    super(message)
+    this.status = status
+    this.missing = missing
+  }
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const r = await fetch(url)
+  if (r.ok) return r.json()
+  const body = await r.json().catch(() => null) as { error?: string; missing?: string } | null
+  throw new ApiError(r.status, body?.error ?? `${r.status}`, body?.missing ?? null)
+}
+
+const enc = encodeURIComponent
+
+export const getDiff = (a: string, b: string) =>
+  getJson<DiffResponse>(`/api/diff?a=${enc(a)}&b=${enc(b)}`)
+
+export const getStepDiff = (a: string, b: string, sa: string, sb: string) =>
+  getJson<StepDiff>(`/api/diff/step?a=${enc(a)}&b=${enc(b)}&sa=${enc(sa)}&sb=${enc(sb)}`)
+
+export const getStepRaw = (a: string, b: string, side: 'sa' | 'sb', span: string) =>
+  getJson<StepRaw>(`/api/diff/step?a=${enc(a)}&b=${enc(b)}&${side}=${enc(span)}`)

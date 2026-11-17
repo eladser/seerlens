@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { addCase, getSets, getTrace, scoreTools } from '../api'
 import { downloadJson } from '../download'
+import { hasLlmBelow, pct, previousTrace, spanCache, tokenText, traceCache } from '../diff'
 import { dur, money, tokens } from '../format'
-import type { Span, ToolScoreResult, TraceDetail as Detail } from '../types'
+import type { Span, ToolScoreResult, TraceDetail as Detail, TraceSummary } from '../types'
 import { Waterfall } from './Waterfall'
 
-export function TraceDetail({ traceId }: { traceId: string }) {
+type Props = { traceId: string; traces: TraceSummary[]; onDiff: (a: string, b: string) => void }
+
+export function TraceDetail({ traceId, traces, onDiff }: Props) {
   const [detail, setDetail] = useState<Detail | null>(null)
   const [spanId, setSpanId] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -33,18 +36,25 @@ export function TraceDetail({ traceId }: { traceId: string }) {
   const { trace, spans } = detail
   const span = spans.find(s => s.id === spanId) ?? null
   const toolCalls = spans.filter(s => s.kind === 'tool' || s.kind === 'mcp')
+  const cache = traceCache(spans)
+  const prev = previousTrace(traces, trace)
 
   return (
     <div className="detail">
       <header className="detail-head">
         <div className="detail-title">
           <h2>{trace.name}</h2>
-          <button className="ghost-btn" onClick={() => downloadJson(`trace-${trace.id}.json`, detail)}>Export JSON</button>
+          <div className="title-actions">
+            {prev && <button className="ghost-btn" onClick={() => onDiff(prev.id, trace.id)}>Diff with previous</button>}
+            <button className="ghost-btn" onClick={() => downloadJson(`trace-${trace.id}.json`, detail)}>Export JSON</button>
+          </div>
         </div>
         <div className="detail-stats">
           <Stat label="duration" value={dur(trace.durationMs)} />
           <Stat label="cost" value={money(trace.costUsd)} />
           <Stat label="tokens" value={tokens(trace.promptTokens, trace.completionTokens)} />
+          {cache.rate != null && <Stat label="cache hit" value={`${pct(cache.rate)} (${cache.read.toLocaleString('en-US')} read)`} />}
+          {cache.reasoning > 0 && <Stat label="reasoning" value={cache.reasoning.toLocaleString('en-US')} />}
           {toolCalls.length > 0 && <Stat label="tool calls" value={String(toolCalls.length)} />}
           {trace.model && <Stat label="model" value={trace.model} />}
           <Stat label="status" value={trace.status} bad={trace.status !== 'ok'} />
@@ -74,20 +84,28 @@ export function TraceDetail({ traceId }: { traceId: string }) {
         onSelect={setSpanId}
       />
 
-      {span && <SpanView span={span} />}
+      {span && <SpanView span={span} counted={hasLlmBelow(spans, span)} />}
     </div>
   )
 }
 
-function SpanView({ span }: { span: Span }) {
+function SpanView({ span, counted }: { span: Span; counted: boolean }) {
   const isTool = span.kind === 'tool' || span.kind === 'mcp'
+  const hit = spanCache(span)
   return (
     <div className="span-view">
       <div className="span-meta muted">
         <span>{dur(span.durationMs)}</span>
         {span.model && <span>{span.model}</span>}
-        {span.kind === 'llm' && <span>{tokens(span.promptTokens, span.completionTokens)} tokens</span>}
-        {span.costUsd != null && <span>{money(span.costUsd)}</span>}
+        {(span.kind === 'llm' || span.kind === 'agent') && (span.promptTokens != null || span.completionTokens != null) && (
+          <span>{tokenText(span.promptTokens, span.completionTokens, span.cacheReadTokens, span.reasoningTokens)}</span>
+        )}
+        {hit != null && <span>cache hit {pct(hit)}</span>}
+        {span.costUsd != null && (
+          counted && (span.costUsd ?? 0) > 0
+            ? <span className="faint-cost">{money(span.costUsd)} (already counted in the steps below)</span>
+            : <span>{money(span.costUsd)}</span>
+        )}
       </div>
 
       {span.error && <pre className="span-error">{span.error}</pre>}

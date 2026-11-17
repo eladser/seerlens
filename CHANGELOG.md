@@ -19,6 +19,7 @@ Notable changes per release. Dates are in 2026.
 - `/api/cost` returns a cache hit rate for the month and per model. It's cache reads over the prompt size, capped at 100%, and blank when no span reported cache reads.
 - Prices for Gemini 3.1 Pro, 3.5 Flash-Lite, 3.1 Flash-Lite and 3 Flash, and the over-200K prompt tier for Gemini 2.5 Pro. Gemini 3.8 Flash and 3.6 Flash have no row because their price changes on 2027-01-01.
 - The .NET SDK and the Semantic Kernel filter send cached and reasoning token counts when the model client reports them.
+- Dashboard: a run diff view at `/diff?a=&b=` (totals, tool path, aligned steps with word-level prompt and output diffs, params, swap), opened from a `diff` select mode in the trace list, "Diff with previous" on a trace, or "What changed" on a failing eval case. Cache hit rate shows per call, per trace and in the cost view, and cached and reasoning tokens show wherever tokens do.
 
 ## 1.5.0 - 09-30
 
