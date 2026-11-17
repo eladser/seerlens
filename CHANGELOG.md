@@ -10,6 +10,7 @@ Notable changes per release. Dates are in 2026.
 - OTLP/JSON ingest accepts numeric `intValue` and numeric span timestamps, which is what the default OpenTelemetry JS exporter sends. Before, a batch with them got a 400. A non-numeric string in those fields is now a 400 too instead of being skipped.
 - `/eval/compare` prices each case on its own instead of the whole set as one call, so a big set no longer lands in the long-context tier. It also runs the scorer you ask for (and reports it) instead of quietly using keyword, and returns 400 for an unknown or `agent` scorer, or `embedding` with no embeddings provider. The regression webhook only compares a run against the previous run with the same scorer.
 - The dashboard's Evals tab can run the consensus and embedding scorers. Saving a set from the editor keeps case ids and the tools, expected tools, rubric, patterns, schema and reference fields instead of renumbering and dropping them. The dev server proxies `/eval`.
+- Run diff API: `GET /api/diff?a=&b=` lines up two runs (a trace id, or `eval:{runId}:{caseIdx}` for one stored eval case) step by step and reports totals, tool path and what changed per step. `GET /api/diff/step` returns the word-level text diff for one pair when a row is expanded. Eval runs from before 1.6 diff as answer-only.
 
 ## 1.5.0 - 09-30
 

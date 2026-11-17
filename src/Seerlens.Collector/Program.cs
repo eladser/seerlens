@@ -104,7 +104,49 @@ app.MapGet("/api/traces", (TraceStore store, int? limit) => store.List(Math.Clam
 app.MapGet("/api/traces/{id}", (string id, TraceStore store) =>
     store.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
 
-app.MapDelete("/api/traces", (TraceStore store) => { store.Clear(); return Results.NoContent(); });
+app.MapGet("/api/diff", (TraceStore traces, EvalStore evals, string? a, string? b) =>
+{
+    if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+        return Results.BadRequest(new { error = "a and b are required" });
+    if (a == b) return Results.BadRequest(new { error = "a and b are the same run" });
+    if (RunRefs.IsMalformed(a)) return Results.BadRequest(new { error = "malformed ref: a" });
+    if (RunRefs.IsMalformed(b)) return Results.BadRequest(new { error = "malformed ref: b" });
+
+    var ra = RunRefs.Resolve(a, traces, evals);
+    if (ra is null) return Results.NotFound(new { error = "run not found", missing = "a" });
+    var rb = RunRefs.Resolve(b, traces, evals);
+    if (rb is null) return Results.NotFound(new { error = "run not found", missing = "b" });
+    return Results.Ok(RunDiff.Compare(ra, rb));
+});
+
+app.MapGet("/api/diff/step", (TraceStore traces, EvalStore evals, string? a, string? b, string? sa, string? sb) =>
+{
+    if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+        return Results.BadRequest(new { error = "a and b are required" });
+    if (string.IsNullOrEmpty(sa) && string.IsNullOrEmpty(sb))
+        return Results.BadRequest(new { error = "sa or sb is required" });
+    if (RunRefs.IsMalformed(a)) return Results.BadRequest(new { error = "malformed ref: a" });
+    if (RunRefs.IsMalformed(b)) return Results.BadRequest(new { error = "malformed ref: b" });
+
+    var ra = RunRefs.Resolve(a, traces, evals);
+    if (ra is null) return Results.NotFound(new { error = "run not found", missing = "a" });
+    var rb = RunRefs.Resolve(b, traces, evals);
+    if (rb is null) return Results.NotFound(new { error = "run not found", missing = "b" });
+
+    SpanRow? x = null, y = null;
+    if (!string.IsNullOrEmpty(sa) && (x = ra.Spans.FirstOrDefault(s => s.Id == sa)) is null)
+        return Results.NotFound(new { error = "step not found", missing = "sa" });
+    if (!string.IsNullOrEmpty(sb) && (y = rb.Spans.FirstOrDefault(s => s.Id == sb)) is null)
+        return Results.NotFound(new { error = "step not found", missing = "sb" });
+
+    if (x is not null && y is not null)
+        return Results.Ok(new StepDiffResponse(
+            TextDiff.Diff(x.PromptText, y.PromptText), TextDiff.Diff(x.CompletionText, y.CompletionText)));
+    var one = x ?? y!;
+    return Results.Ok(new StepRawResponse(one.PromptText, one.CompletionText));
+});
+
+app.MapDelete("/api/traces",(TraceStore store) => { store.Clear(); return Results.NoContent(); });
 
 app.MapDelete("/api/traces/{id}", (string id, TraceStore store) => { store.Delete(id); return Results.NoContent(); });
 
