@@ -10,13 +10,13 @@
     <PackageId>Seerlens.SemanticKernel</PackageId>
     <Version>1.6.0</Version>
     <Authors>Elad Sertshuk</Authors>
-    <Description>Auto-trace Semantic Kernel into Seerlens. Add one filter and every function, tool, and model call shows up in the local dashboard, no manual instrumentation.</Description>
+    <Description>Auto-trace Semantic Kernel into Seerlens. Add one filter and every function, tool, and model call shows up in the local dashboard, no manual instrumentation. Then diff runs, see real cost and gate CI.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>
     <RepositoryUrl>https://github.com/eladser/seerlens</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>llm;ai;observability;semantic-kernel;tracing;agents;dotnet</PackageTags>
+    <PackageTags>llm;ai;observability;semantic-kernel;tracing;agents;dotnet;diff;evals;cost;genai</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
