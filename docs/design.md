@@ -3,7 +3,7 @@
 *DevTools for AI calls.*
 Date: 2026-06-04 · Owner: Elad Sertshuk
 
-**Status (1.6):** On .NET 10. Tracing with .NET, Python, and JavaScript SDKs, all on OTLP (JSON or protobuf, gzip or not), plus a `Seerlens.SemanticKernel` filter that traces SK functions with no code changes and an `AddSeerlens` DI extension. Evals run from the dashboard and the CLI (with CI gating and regression-vs-baseline), or on a daily schedule, scored by keyword, LLM judge, rubric (per-criterion), consensus (multi-judge), regex, JSON-schema, embedding similarity, or agent tool-call sequence. Model and prompt comparison, cost with a budget and alerts priced on the current model lineup, agent and MCP step trees, JSON export, and a webhook for regressions and over-budget spend. Opt-in retention (`SEERLENS_RETENTION_DAYS`) drops old traces. What's next is in the [roadmap](roadmap.md): Aspire interop and opt-in sampling.
+**Status (1.6):** On .NET 10. Takes OTLP GenAI traces from any exporter (JSON or protobuf, gzip or not), with SDKs for .NET, Python and JavaScript, a `Seerlens.SemanticKernel` filter that traces SK functions with no code changes, and an `AddSeerlens` DI extension. Two runs (traces or eval cases) diff step by step: totals, tool path, and what changed per model or tool call, down to a word-level prompt diff. Cost counts cached and reasoning tokens, shows a cache hit rate, and counts agent spans once. Evals run from the dashboard and the CLI, or on a daily schedule, scored by keyword, LLM judge, rubric (per-criterion), consensus (multi-judge), regex, JSON-schema, embedding similarity, or agent tool-call sequence. The CLI gates CI on a score floor, a drop against a baseline, and a cost increase against that baseline, and a failing case links to the last run where it passed. Also model and prompt comparison, a budget with alerts, agent and MCP step trees, JSON export, a webhook for regressions and over-budget spend, and opt-in retention (`SEERLENS_RETENTION_DAYS`). What's next is in the [roadmap](roadmap.md): Aspire interop and opt-in sampling.
 
 ## Pitch
 
@@ -21,11 +21,11 @@ A developer building an AI feature, in the middle of the dev loop, who needs to 
 
 The honest landscape first, because it shapes the whole pitch. Language-agnostic LLM observability is crowded and well funded, and much of it is already local-first and open source. Promptfoo (MIT, runs locally, CI-integrated, 300k+ developers, now part of OpenAI) and Comet's Opik (open source, evals in CI) own the local eval story. Arize Phoenix is local-first and OTel-based. Langfuse and Helicone are the deploy-it platforms. Competing with that group on features, in their languages, is not a fight worth picking.
 
-Where the field thins to almost nothing is **.NET**. The .NET AI stack (Microsoft.Extensions.AI, Semantic Kernel, Aspire) gives you tracing, the Aspire dashboard even renders GenAI spans, but nothing in it judges answer quality or turns tokens into dollars. A .NET team that wants evals or cost today has two choices: bolt a Python tool onto a C# stack, or go without.
+So the lead is narrow and works the same in any language: **diff your AI calls locally, see what they really cost, fail CI when quality or cost regresses.** A run diff lines up two runs of the same flow step by step, so a prompt edit or a model swap shows as the exact calls that changed. Cost counts cached and reasoning tokens instead of pricing every token at the input rate. And the CLI fails a build on a quality drop or a cost increase against a saved baseline. The input is plain OpenTelemetry GenAI spans, so a Python or JavaScript app needs no Seerlens package at all.
 
-That gap is the wedge and the identity. **Seerlens is the local-first AI eval, cost, and trace tool that's native to .NET.** It's built on the OpenTelemetry GenAI standard, so it still ingests from any language, but it's aimed first at the ecosystem that has no native option. The cross-language reach is range. The .NET-first focus is the point.
+**.NET is the most polished path, not the headline.** The .NET AI stack (Microsoft.Extensions.AI, Semantic Kernel, Aspire) gives you tracing, and the Aspire dashboard even renders GenAI spans, but nothing in it judges answer quality or turns tokens into dollars. The .NET SDK goes furthest: one line on any `IChatClient`, cached and reasoning counts read from MEAI usage, Semantic Kernel traced with no code, DI wiring. That depth stays, it just isn't the first thing a new user has to care about.
 
-For a portfolio the same framing is the honest one: the value here isn't commercial novelty, there's an OpenAI-owned competitor in the broad market. It's that the author can build a standards-based trace pipeline, an eval engine, and a clean local-first dev tool, end to end, in the ecosystem the author knows deepest.
+For a portfolio the same framing is the honest one: the value here isn't commercial novelty, there's an OpenAI-owned competitor in the broad market. It's that the author can build a standards-based trace pipeline, a run diff, an eval engine and a clean local-first dev tool, end to end.
 
 ## Core design decision
 
@@ -46,7 +46,7 @@ Everything is built on **OpenTelemetry GenAI semantic conventions** (`gen_ai.*` 
 SQLite, not Postgres. A local dev tool should have **zero infrastructure**, no container, no connection string. SQLite ships in-process, the DB is a file, and it matches the "one command, no setup" promise. (The earlier draft said Postgres; changed to fit the local-first decision.)
 
 ### Starter SDKs (priority order)
-1. **.NET / C#**, leads the README. Wraps `IChatClient` (Microsoft.Extensions.AI) as a delegating handler.
+1. **.NET / C#**, the deepest integration. Wraps `IChatClient` (Microsoft.Extensions.AI) as a delegating handler. The README leads with plain OpenTelemetry instead, since that works from any language.
 2. **Python**, wraps the OpenAI/Anthropic clients or hooks existing OpenLLMetry instrumentation.
 3. **JavaScript / TypeScript**, wraps the provider SDKs / Vercel AI SDK.
 
@@ -113,7 +113,7 @@ These come straight from the hiring research and are what make the repo read as 
 
 ## Risks and limitations
 
-- **Crowded space.** The language-agnostic side is saturated, including local-first open-source incumbents (Promptfoo, Opik, Phoenix). Seerlens doesn't try to beat them there. It aims at .NET, where there's no native eval or cost tool, and leans on build quality and the standards-based design as the portfolio signal, not commercial novelty.
+- **Crowded space.** The language-agnostic side is saturated, including local-first open-source incumbents (Promptfoo, Opik, Phoenix). Seerlens doesn't try to out-feature them. It leads with the three things in the pitch, keeps .NET as its deepest integration, and leans on build quality and the standards-based design as the portfolio signal, not commercial novelty.
 - **Eval demos as numbers.** Mitigated by rendering eval as score-over-time trends inside the trace UI, not a static table.
 - **Scope creep across languages.** Mitigated by phasing, .NET SDK first, others only after the core ships.
 - **OTel GenAI conventions are still evolving.** Mitigated by normalizing spans at ingest into an internal model, so a convention change is a one-place fix.
