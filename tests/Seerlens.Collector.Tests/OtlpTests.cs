@@ -409,6 +409,49 @@ public class OtlpTests
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/v1/traces", bad)).StatusCode);
     }
 
+    static string Batch(string start, string end, string tokens) => $$$"""
+    {"resourceSpans":[{"scopeSpans":[{"spans":[
+      {"traceId":"num1","spanId":"s1","parentSpanId":"","name":"chat gpt-4o",
+       "startTimeUnixNano":{{{start}}},"endTimeUnixNano":{{{end}}},
+       "attributes":[
+         {"key":"gen_ai.request.model","value":{"stringValue":"gpt-4o"}},
+         {"key":"gen_ai.usage.input_tokens","value":{"intValue":{{{tokens}}}}},
+         {"key":"gen_ai.usage.output_tokens","value":{"intValue":{{{tokens}}}}}
+       ],"status":{"code":1}}
+    ]}]}]}
+    """;
+
+    [Theory]
+    [InlineData("1700000000000000000", "1700000000800000000", "1000")]
+    [InlineData("\"1700000000000000000\"", "\"1700000000800000000\"", "\"1000\"")]
+    public async Task Numeric_and_string_ints_and_timestamps_are_both_accepted(string start, string end, string tokens)
+    {
+        using var factory = new Factory();
+        var client = factory.CreateClient();
+
+        var post = await client.PostAsync("/v1/traces",
+            new StringContent(Batch(start, end, tokens), Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        var detail = await client.GetFromJsonAsync<TraceDetail>("/api/traces/num1");
+        var span = Assert.Single(detail!.Spans);
+        Assert.Equal(1_700_000_000_000, span.StartedAt);
+        Assert.Equal(800, span.DurationMs, 0.5);
+        Assert.Equal(1000, span.PromptTokens);
+        Assert.Equal(1000, span.CompletionTokens);
+    }
+
+    [Fact]
+    public async Task A_non_numeric_string_in_a_number_field_gets_400()
+    {
+        using var factory = new Factory();
+        var client = factory.CreateClient();
+
+        var post = await client.PostAsync("/v1/traces",
+            new StringContent(Batch("\"1700000000000000000\"", "\"1700000000800000000\"", "\"lots\""), Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
+    }
+
     sealed class Factory : WebApplicationFactory<Program>
     {
         readonly string _db = Path.Combine(Path.GetTempPath(), $"seerlens-otlp-{Guid.NewGuid():N}.db");
