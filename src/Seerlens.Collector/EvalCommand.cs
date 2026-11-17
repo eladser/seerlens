@@ -72,7 +72,7 @@ static class EvalCommand
     }
 
     // Compare against the floor and the baseline, print the verdict, return the exit code.
-    static int Gate(EvalRun run, Options opt)
+    internal static int Gate(EvalRun run, Options opt)
     {
         var pct = run.Score.ToString("P0", CultureInfo.InvariantCulture);
         var failed = false;
@@ -105,6 +105,7 @@ static class EvalCommand
                 {
                     Console.WriteLine($"baseline ok  {b.Score:P0} -> {pct} (allowed drop {opt.Tolerance:P0}).");
                 }
+                CheckCost(b, run, opt, ref failed);
             }
             else
             {
@@ -128,6 +129,52 @@ static class EvalCommand
 
     internal static bool Regressed(double baseline, double score, double tolerance) =>
         baseline - score > tolerance + 1e-9;
+
+    // Target-model spend for the run: the sum of its priced llm steps, null when none priced.
+    internal static double? RunCost(EvalRun run)
+    {
+        double? total = null;
+        foreach (var s in run.Cases.SelectMany(c => c.Steps ?? []))
+        {
+            if (s.Kind != "llm") continue;
+            var usage = new TokenUsage(s.InputTokens, s.OutputTokens, s.CacheReadTokens, null, s.ReasoningTokens);
+            if (Pricing.CostFor(s.Model ?? run.Target, usage) is { } c)
+                total = (total ?? 0) + c;
+        }
+        return total;
+    }
+
+    internal static bool CostExceeded(double baseline, double cost, double increase) =>
+        cost > baseline * (1 + increase) + 1e-12;
+
+    static void CheckCost(BaselineFile b, EvalRun run, Options opt, ref bool failed)
+    {
+        var cost = RunCost(run);
+        if (b.CostUsd is null)
+        {
+            if (opt.MaxCostIncrease is not null)
+                Console.WriteLine("cost  the baseline has no cost (saved before cost tracking, or without priced steps), so the cost gate is skipped. Re-save it with --save-baseline.");
+            return;
+        }
+        if (cost is null)
+        {
+            if (opt.MaxCostIncrease is not null)
+                Console.WriteLine("cost  this run has no priced steps (unknown model or no usage reported), so the cost gate is skipped.");
+            return;
+        }
+
+        var delta = b.CostUsd.Value > 0 ? $" ({cost.Value / b.CostUsd.Value - 1:+0%;-0%;0%})" : "";
+        var line = $"${cost.Value.ToString("0.0000", CultureInfo.InvariantCulture)} vs ${b.CostUsd.Value.ToString("0.0000", CultureInfo.InvariantCulture)} baseline{delta}";
+        if (opt.MaxCostIncrease is { } max && CostExceeded(b.CostUsd.Value, cost.Value, max))
+        {
+            Console.WriteLine($"COST  {line}, more than the {max:P0} increase allowed.");
+            failed = true;
+        }
+        else
+        {
+            Console.WriteLine($"cost  {line}" + (opt.MaxCostIncrease is { } m ? $" (allowed increase {m:P0})." : "."));
+        }
+    }
 
     static void PrintTable(EvalRun run)
     {
@@ -210,6 +257,7 @@ static class EvalCommand
           --min <0..1>          fail if the mean score falls below this floor
           --baseline <path>     fail if the score dropped too far below a saved baseline
           --tolerance <0..1>    allowed drop versus the baseline (default 0.05)
+          --max-cost-increase <f>  fail if run cost is over the baseline cost x (1 + f); needs --baseline
           --save-baseline <p>   write this run's score as the baseline at <p>
           --scorer <name>       keyword (default), llm-judge, rubric, consensus, regex, json-schema, embedding, or agent
           --model <name>        override SEERLENS_AI_MODEL for this run
@@ -222,12 +270,13 @@ static class EvalCommand
 
         Examples
           seerlens eval support --min 0.8
-          seerlens eval evals/support.json --baseline .seerlens/support.base --junit results.xml
+          seerlens eval evals/support.json --baseline .seerlens/support.base --max-cost-increase 0.25 --junit results.xml
         """);
 
-    sealed class Options
+    internal sealed class Options
     {
         public string Set = "";
+        public double? MaxCostIncrease;
         public double? Min;
         public string? Baseline;
         public double Tolerance = 0.05;
@@ -249,6 +298,7 @@ static class EvalCommand
                 {
                     case "--min": o.Min = Num(Next(args, ref i), ref o.Error); break;
                     case "--baseline": o.Baseline = Next(args, ref i); break;
+                    case "--max-cost-increase": o.MaxCostIncrease = Num(Next(args, ref i), ref o.Error); break;
                     case "--tolerance": o.Tolerance = Num(Next(args, ref i), ref o.Error) ?? o.Tolerance; break;
                     case "--save-baseline": o.SaveBaseline = Next(args, ref i); break;
                     case "--scorer": o.Scorer = Next(args, ref i) ?? o.Scorer; break;
@@ -261,7 +311,12 @@ static class EvalCommand
                 }
                 if (o.Error is not null) break;
             }
-            if (!Scoring.IsKnown(o.Scorer))
+            if (o.Error is null && o.MaxCostIncrease is { } mc)
+            {
+                if (mc < 0) o.Error = "--max-cost-increase must be 0 or more (0.25 allows 25% more)";
+                else if (o.Baseline is null) o.Error = "--max-cost-increase needs --baseline to compare against";
+            }
+            if (o.Error is null && !Scoring.IsKnown(o.Scorer))
                 o.Error = $"--scorer must be one of keyword, llm-judge, rubric, consensus, regex, json-schema, embedding, agent, got '{o.Scorer}'";
             return o;
         }
@@ -276,7 +331,7 @@ static class EvalCommand
         }
     }
 
-    internal record BaselineFile(string Set, string Scorer, double Score, long SavedAt);
+    internal record BaselineFile(string Set, string Scorer, double Score, long SavedAt, double? CostUsd = null);
 
     internal static class Baseline
     {
@@ -292,7 +347,7 @@ static class EvalCommand
             if (Path.GetDirectoryName(path) is { Length: > 0 } dir)
                 Directory.CreateDirectory(dir);
             File.WriteAllText(path, JsonSerializer.Serialize(
-                new BaselineFile(run.Set, run.Scorer, run.Score, run.CreatedAt), Json));
+                new BaselineFile(run.Set, run.Scorer, run.Score, run.CreatedAt, RunCost(run)), Json));
         }
     }
 }
