@@ -8,6 +8,8 @@ namespace Seerlens.Collector;
 // ({ "model": { "in": 1.0, "out": 2.0 } }). Models priced by prompt size also take
 // "above" (input tokens) and "inAbove"/"outAbove": a call with more input tokens than
 // "above" is priced at the second pair, a call at or under it at the first.
+public record TokenUsage(long? Input, long? Output, long? CacheRead = null, long? CacheWrite = null, long? Reasoning = null);
+
 public static class Pricing
 {
     internal record Rate(double In, double Out, long? Above = null, double? InAbove = null, double? OutAbove = null);
@@ -83,12 +85,15 @@ public static class Pricing
 
     static Pricing() => LoadOverrides();
 
-    public static double? CostFor(string? model, long? inTokens, long? outTokens)
+    public static double? CostFor(string? model, long? inTokens, long? outTokens) =>
+        CostFor(model, new TokenUsage(inTokens, outTokens));
+
+    public static double? CostFor(string? model, TokenUsage u)
     {
         if (model is null || !Table.TryGetValue(Normalize(model), out var rate))
             return null;
 
-        return CostAt(rate, inTokens, outTokens);
+        return CostAt(rate, u.Input, u.Output);
     }
 
     internal static double CostAt(Rate rate, long? inTokens, long? outTokens)

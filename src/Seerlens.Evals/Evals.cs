@@ -41,4 +41,21 @@ public record EvalRun(
     double Score,
     IReadOnlyList<EvalCaseResult> Cases);
 
-public record EvalCaseResult(string Input, string Answer, double Score);
+public record EvalStep(
+    string Kind,               // "llm" | "tool"
+    string? Name,
+    string? Model,
+    long StartedAt,
+    double DurationMs,
+    long? InputTokens,
+    long? OutputTokens,
+    long? CacheReadTokens,
+    long? ReasoningTokens,
+    string? Args);
+
+public record EvalCaseResult(
+    string Input,
+    string Answer,
+    double Score,
+    string? CaseId = null,
+    IReadOnlyList<EvalStep>? Steps = null);

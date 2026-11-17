@@ -23,7 +23,12 @@ public record IngestSpan(
     long? CompletionTokens,
     string? PromptText,
     string? CompletionText,
-    string? Error);
+    string? Error,
+    long? CacheReadTokens = null,
+    long? CacheWriteTokens = null,
+    long? ReasoningTokens = null,
+    string? Operation = null,
+    string? Params = null);
 
 // Row shown in the trace list. No big text fields so the list stays cheap.
 public record TraceSummary(
@@ -53,7 +58,12 @@ public record SpanRow(
     double? CostUsd,
     string? PromptText,
     string? CompletionText,
-    string? Error);
+    string? Error,
+    long? CacheReadTokens = null,
+    long? CacheWriteTokens = null,
+    long? ReasoningTokens = null,
+    string? Operation = null,
+    string? Params = null);
 
 public record Stats(int Traces, double TotalCostUsd, double AvgDurationMs);
 
