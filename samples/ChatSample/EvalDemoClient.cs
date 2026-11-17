@@ -21,7 +21,11 @@ sealed class EvalDemoClient(bool degraded, string model) : IChatClient
             _ => "Sorry, I'm not sure.",
         };
 
-        return new ChatResponse(new ChatMessage(ChatRole.Assistant, answer)) { ModelId = model };
+        return new ChatResponse(new ChatMessage(ChatRole.Assistant, answer))
+        {
+            ModelId = model,
+            Usage = new UsageDetails { InputTokenCount = 30 + q.Length / 4, OutputTokenCount = 4 + answer.Length / 4 },
+        };
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,

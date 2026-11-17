@@ -4,6 +4,7 @@ namespace ChatSample;
 
 // Stands in for a real provider so the sample runs without API keys.
 // Adds a bit of latency and token usage so traces look like the real thing.
+// A system prompt it has seen before counts as a cache hit, like provider prompt caching.
 sealed class DemoChatClient : IChatClient
 {
     static readonly string[] Replies =
@@ -16,6 +17,7 @@ sealed class DemoChatClient : IChatClient
     };
 
     readonly Random _rng = new(7);
+    readonly HashSet<string> _seen = [];
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
         ChatOptions? options = null, CancellationToken ct = default)
@@ -27,14 +29,19 @@ sealed class DemoChatClient : IChatClient
             throw new TimeoutException("request to the model timed out after 30s");
 
         var reply = Replies[_rng.Next(Replies.Length)];
+        var input = Math.Max(20, prompt.Length / 3);
+
+        var system = messages.FirstOrDefault(m => m.Role == ChatRole.System)?.Text;
+        long? cached = system is not null && !_seen.Add(system) ? Math.Min(input, system.Length / 3) : null;
 
         return new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
         {
             ModelId = options?.ModelId ?? "gpt-4o",
             Usage = new UsageDetails
             {
-                InputTokenCount = Math.Max(20, prompt.Length / 3),
+                InputTokenCount = input,
                 OutputTokenCount = Math.Max(15, reply.Length / 3),
+                CachedInputTokenCount = cached,
             }
         };
     }
