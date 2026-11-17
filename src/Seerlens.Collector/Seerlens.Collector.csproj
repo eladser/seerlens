@@ -23,6 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DiffPlex" Version="1.9.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
     <!-- Override the native SQLite bundle to 3.x; the 2.1.11 it pulls in transitively has a
