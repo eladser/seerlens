@@ -1,8 +1,10 @@
 export function money(n: number | null): string {
   if (n == null) return 'n/a'
   if (n === 0) return '$0'
-  if (n < 0.01) return '$' + n.toFixed(6)
-  return '$' + n.toFixed(4)
+  if (Math.abs(n) >= 1) return '$' + n.toFixed(2)
+  // 4 significant digits, trailing zeros trimmed
+  const d = Math.min(12, 3 - Math.floor(Math.log10(Math.abs(n))))
+  return '$' + n.toFixed(d).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 export function dur(ms: number): string {

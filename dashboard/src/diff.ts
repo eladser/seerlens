@@ -1,3 +1,4 @@
+import { money } from './format'
 import type { DiffStep, Span, TraceSummary } from './types'
 
 const n = (v: number | null | undefined) => v ?? 0
@@ -74,8 +75,7 @@ export function deltaMoney(a: number | null, b: number | null): Delta {
   if (a == null || b == null) return { text: '', tone: '' }
   const d = b - a
   if (Math.abs(d) < 1e-9) return { text: '=', tone: '' }
-  const m = Math.abs(d)
-  return { text: `${sign(d)}$${m < 0.01 ? m.toFixed(6) : m.toFixed(4)}${rel(a, d)}`, tone: d > 0 ? 'bad' : 'good' }
+  return { text: `${sign(d)}${money(Math.abs(d))}${rel(a, d)}`, tone: d > 0 ? 'bad' : 'good' }
 }
 
 export function deltaMs(a: number, b: number): Delta {

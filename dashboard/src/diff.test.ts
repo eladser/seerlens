@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cacheHit, counts, delta, deltaMoney, hasLlmBelow, pathMarks, pickPair, previousTrace, tokenText, togglePick, traceCache } from './diff'
+import { money } from './format'
 import { diffUrl, parseRoute } from './route'
 import type { DiffStep, Span, TraceSummary } from './types'
 
@@ -77,8 +78,26 @@ describe('deltas', () => {
     expect(delta(null, 4, true).text).toBe('')
   })
   it('formats money', () => {
-    expect(deltaMoney(0.01, 0.015)).toEqual({ text: '+$0.005000 (+50%)', tone: 'bad' })
+    expect(deltaMoney(0.01, 0.015)).toEqual({ text: '+$0.005 (+50%)', tone: 'bad' })
     expect(deltaMoney(0.02, null).text).toBe('')
+  })
+})
+
+describe('money', () => {
+  it('uses 4 significant digits below $1 and trims zeros', () => {
+    expect(money(0.0157)).toBe('$0.0157')
+    expect(money(0.002962)).toBe('$0.002962')
+    expect(money(0.0039)).toBe('$0.0039')
+    expect(money(0.5)).toBe('$0.5')
+    expect(money(0.00000123)).toBe('$0.00000123')
+  })
+  it('uses cents from $1 up', () => {
+    expect(money(1)).toBe('$1.00')
+    expect(money(12.3456)).toBe('$12.35')
+  })
+  it('handles zero and missing', () => {
+    expect(money(0)).toBe('$0')
+    expect(money(null)).toBe('n/a')
   })
 })
 
