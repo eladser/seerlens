@@ -1,12 +1,12 @@
 # Roadmap
 
-Seerlens does the core job today: see your AI calls (cost, speed, prompts, failures), run quality evals from the dashboard or CI, compare models, watch spend against a budget, and trace agent and MCP runs.
+Seerlens does the core job today: diff two runs of your AI calls step by step, see what each call really costs with cached and reasoning tokens counted, and fail CI when quality or cost regresses. Around that it shows every call (cost, speed, prompts, failures), runs evals from the dashboard, the CLI or a schedule, compares models, watches spend against a budget, and traces agent and MCP runs.
 
 A note on direction, because it shapes everything below. Live trace viewing is turning into a commodity. The dashboards that ship with frameworks now show a GenAI call's prompt, response, tool calls and tokens for free, in your stack, during a debug session. Seerlens is not going to win by being one more live span viewer, and it won't try. Those tools are read-only mirrors of telemetry: they show you what happened in the moment and then forget it. They don't judge whether the answer was any good, they don't turn tokens into a budget you can act on, and they can't fail your build when quality drops.
 
-That last part is the whole opening. Seerlens moves up the stack, from watching calls to **judging them, costing them, and catching regressions before they ship, with history that outlives a single run.** Tracing is the on-ramp. Evals and cost are the product.
+That last part is the whole opening. Seerlens moves up the stack, from watching calls to **comparing them, costing them, and catching regressions before they ship, with history that outlives a single run.** Tracing is the on-ramp. The diff, cost and the CI gate are the product.
 
-And there's a place to aim all of it. In the wider market this layer is crowded. In .NET the parts exist on their own (Microsoft.Extensions.AI.Evaluation scores answers, the Aspire dashboard shows spans) but nothing ties scoring, history, cost in dollars and a CI gate together in one local tool. So Seerlens leads **.NET-first**, evals and cost native to the ecosystem that has no other option, while OTLP ingest keeps the door open to any language. That's the identity the rest of this roadmap serves.
+None of that is tied to a language. Seerlens reads plain OpenTelemetry GenAI spans, so the README leads with a Python or JavaScript app and no Seerlens package. .NET stays the most polished path: in .NET the parts exist on their own (Microsoft.Extensions.AI.Evaluation scores answers, the Aspire dashboard shows spans) but nothing ties scoring, history, cost in dollars and a CI gate together in one local tool, so the .NET SDK and the Semantic Kernel filter go deepest.
 
 ## Shipped in 1.0
 
@@ -49,15 +49,20 @@ The 0.3 through 0.7 plan all landed:
 
 ## Shipped in 1.6
 
+- **Run diff.** Pick two traces, or a failing eval case and the last run where it passed, and see them lined up step by step: totals with deltas, the tool path with added and dropped calls, what changed per call (model, parameters, finish reason, input, output, error), and a word-level diff of any prompt. From the trace list, "Diff with previous" on a trace, "What changed" on an eval case, a `/diff` link, or `GET /api/diff`.
+- **Cost that counts cached and reasoning tokens.** Ingest reads cache read, cache write and reasoning counts under every spelling in use, the price table has cache prices for Anthropic, OpenAI and Gemini, and cached tokens are priced once whether the provider counts them inside the input or beside it. A cache hit rate shows per trace, per model and for the month. An `invoke_agent` span no longer doubles a trace's totals.
+- **A cost gate in CI.** `seerlens eval --max-cost-increase 0.25` fails the build when a run costs more than 25% over the saved baseline, next to the existing score floor and regression check.
+- **Eval runs keep their steps.** Each case stores its model and tool calls with tokens and timing, which is what the eval diff reads.
+- **Works with the default OpenTelemetry JS exporter.** OTLP/JSON with numeric `intValue` and timestamps is accepted.
 - **Opt-in retention.** Set `SEERLENS_RETENTION_DAYS` and the collector drops traces older than that many days, at startup and then once a day. It's off unless set, and eval runs and settings are never pruned.
 - **Tool results from standard OpenTelemetry exporters.** OTLP ingest reads `gen_ai.tool.call.result`, so tool spans from exporters that follow the GenAI semantic conventions show what the tool returned, and structured arguments and results render as JSON.
-- **Current model prices.** Built-in prices for Claude Fable, Mythos, Opus and Sonnet 5.x, and for more of the GPT-5 family plus o3-pro. Anything missing is still one line in a `SEERLENS_PRICING_FILE`.
+- **Current model prices.** Built-in prices for Claude Fable, Mythos, Opus and Sonnet 5.x, more of the GPT-5 family plus o3-pro, the GPT-6 and GPT-5.6 models, and Gemini 3.1 Pro, 3 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. Anything missing is still one line in a `SEERLENS_PRICING_FILE`.
 
 ## What's next
 
 ### Deeper in .NET, continued
 
-The SK filter and DI extension shipped in 1.3. Next in the same direction: clean interop next to the Aspire dashboard, so Seerlens sits alongside the tooling .NET devs already run. This is where the .NET-first identity compounds rather than spreads thin.
+The SK filter and DI extension shipped in 1.3, and the SDK sends cached and reasoning counts since 1.6. Next in the same direction: clean interop next to the Aspire dashboard, so Seerlens sits alongside the tooling .NET devs already run.
 
 ### Scale, when you actually need it
 
@@ -70,4 +75,4 @@ Retention shipped in 1.6. Still to come: sampling so a busy app doesn't store ev
 
 ---
 
-The throughline is unchanged: tracing gets you in the door, evals and cost keep you there, and in .NET there's no one else doing them.
+The throughline: tracing gets you in the door, and the diff, the cost and the CI gate are why you keep it running.
