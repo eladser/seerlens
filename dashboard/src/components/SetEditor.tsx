@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { deleteSet, getSet, saveSet } from '../api'
 import type { GoldenCase } from '../types'
 
-type Draft = { input: string; keywords: string; criteria: string }
+type Draft = { input: string; keywords: string; criteria: string; orig?: GoldenCase }
 
 const blank: Draft = { input: '', keywords: '', criteria: '' }
 
@@ -22,6 +22,7 @@ export function SetEditor({ name, onSaved, onClose }: {
     if (!name) return
     getSet(name).then(s => {
       setCases(s.cases.map(c => ({
+        orig: c,
         input: c.input,
         keywords: (c.keywords ?? []).join(', '),
         criteria: c.criteria ?? '',
@@ -36,10 +37,19 @@ export function SetEditor({ name, onSaved, onClose }: {
   async function save() {
     const clean = setName.trim()
     if (!clean) { setErr('Give the set a name.'); return }
+    // keep loaded cases whole (ids and the fields this form doesn't show); new ones get the next free case-N
+    const used = new Set(cases.flatMap(c => c.orig ? [c.orig.id] : []))
+    let n = 0
+    const nextId = () => {
+      while (used.has(`case-${++n}`));
+      used.add(`case-${n}`)
+      return `case-${n}`
+    }
     const out: GoldenCase[] = cases
       .filter(c => c.input.trim())
-      .map((c, i) => ({
-        id: `case-${i + 1}`,
+      .map(c => ({
+        ...c.orig,
+        id: c.orig?.id ?? nextId(),
         input: c.input.trim(),
         keywords: c.keywords.split(',').map(k => k.trim()).filter(Boolean),
         criteria: c.criteria.trim() || null,
