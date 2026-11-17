@@ -24,6 +24,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Seerlens.Sdk.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Seerlens.Sdk\Seerlens.Sdk.csproj" />
   </ItemGroup>
 

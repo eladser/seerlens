@@ -101,10 +101,11 @@ public static class Otlp
         var model = Str(attr, "gen_ai.response.model") ?? Str(attr, "gen_ai.request.model");
         var inTokens = Long(attr, "gen_ai.usage.input_tokens") ?? Long(attr, "gen_ai.usage.prompt_tokens");
         var outTokens = Long(attr, "gen_ai.usage.output_tokens") ?? Long(attr, "gen_ai.usage.completion_tokens");
+        var operation = Str(attr, "gen_ai.operation.name");
 
         var startMs = Nanos(span.StartTimeUnixNano);
         var endMs = Nanos(span.EndTimeUnixNano);
-        var kind = Kind(attr, model);
+        var kind = Kind(attr, model, operation);
 
         // For tool and MCP spans the interesting text is the call arguments and the
         // result, so map those into the prompt/completion slots the UI already shows.
@@ -129,20 +130,76 @@ public static class Otlp
             outTokens,
             prompt,
             completion,
-            span.Status?.Code == 2 ? span.Status.Message ?? "error" : null);
+            span.Status?.Code == 2 ? span.Status.Message ?? "error" : null,
+            Long(attr, CacheReadKeys),
+            Long(attr, CacheWriteKeys),
+            Long(attr, ReasoningKeys),
+            operation,
+            Params(attr));
 
         return new Mapped(s, Str(attr, "gen_ai.provider.name") ?? Str(attr, "gen_ai.system"));
     }
 
-    static string Kind(Dictionary<string, OtlpValue?> attr, string? model)
+    // Usage attributes have been renamed more than once; the first key present wins, newest first.
+    static readonly string[] CacheReadKeys =
+    [
+        "gen_ai.usage.cache_read.input_tokens",
+        "gen_ai.usage.cache_read_input_tokens",
+        "ai.usage.inputTokenDetails.cacheReadTokens",
+        "ai.usage.cachedInputTokens",
+    ];
+
+    static readonly string[] CacheWriteKeys =
+    [
+        "gen_ai.usage.cache_write.input_tokens",
+        "gen_ai.usage.cache_creation.input_tokens",
+        "gen_ai.usage.cache_creation_input_tokens",
+        "ai.usage.inputTokenDetails.cacheWriteTokens",
+    ];
+
+    static readonly string[] ReasoningKeys =
+    [
+        "gen_ai.usage.reasoning.output_tokens",
+        "gen_ai.usage.reasoning_tokens",
+        "llm.usage.reasoning_tokens",
+        "ai.usage.outputTokenDetails.reasoningTokens",
+        "ai.usage.reasoningTokens",
+    ];
+
+    const string RequestPrefix = "gen_ai.request.";
+
+    // Every gen_ai.request.* except the model, prefix dropped, plus the finish reasons.
+    // Keys are sorted so the same settings always give the same text.
+    static string? Params(Dictionary<string, OtlpValue?> attr)
+    {
+        var found = new SortedDictionary<string, JsonNode>(StringComparer.Ordinal);
+        foreach (var (key, v) in attr)
+        {
+            if (!key.StartsWith(RequestPrefix, StringComparison.Ordinal) || key == "gen_ai.request.model") continue;
+            if (key.Length > RequestPrefix.Length && ToNode(v) is { } node)
+                found[key[RequestPrefix.Length..]] = node;
+        }
+        if (attr.TryGetValue("gen_ai.response.finish_reasons", out var fr) && ToNode(fr) is { } reasons)
+            found["finish_reasons"] = reasons;
+
+        if (found.Count == 0) return null;
+        var obj = new JsonObject();
+        foreach (var (k, node) in found) obj[k] = node;
+        return obj.ToJsonString();
+    }
+
+    static string Kind(Dictionary<string, OtlpValue?> attr, string? model, string? operation)
     {
         // MCP tool calls get their own kind so the agent view can call them out.
         if (attr.Keys.Any(k => k.StartsWith("mcp.", StringComparison.Ordinal))
             || Str(attr, "rpc.system") == "mcp"
             || Str(attr, "gen_ai.tool.type") == "mcp")
             return "mcp";
-        if (Str(attr, "gen_ai.operation.name") == "execute_tool" || attr.ContainsKey("gen_ai.tool.name"))
+        if (operation == "execute_tool" || attr.ContainsKey("gen_ai.tool.name"))
             return "tool";
+        // an agent span reports the usage of the model calls under it, so it isn't an llm step
+        if (operation is not null && (operation.StartsWith("invoke_", StringComparison.Ordinal) || operation == "create_agent"))
+            return "agent";
         if (model is not null || attr.Keys.Any(k => k.StartsWith("gen_ai.", StringComparison.Ordinal)))
             return "llm";
         return "other";
@@ -168,6 +225,13 @@ public static class Otlp
     // Tool arguments and results may come as structured values; show those as JSON.
     static string? Text(Dictionary<string, OtlpValue?> attr, string key) =>
         attr.TryGetValue(key, out var v) ? v?.StringValue ?? ToNode(v)?.ToJsonString() : null;
+
+    static long? Long(Dictionary<string, OtlpValue?> attr, string[] keys)
+    {
+        foreach (var k in keys)
+            if (Long(attr, k) is { } n) return n;
+        return null;
+    }
 
     static long? Long(Dictionary<string, OtlpValue?> attr, string key)
     {

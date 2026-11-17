@@ -50,6 +50,42 @@ public sealed class TraceStore
             );
             create index if not exists ix_spans_trace on spans(trace_id);
             """);
+        Migrate(db);
+    }
+
+    static readonly (string Name, string Type)[] SpanColumns =
+    [
+        ("cache_read_tokens", "integer"),
+        ("cache_write_tokens", "integer"),
+        ("reasoning_tokens", "integer"),
+        ("operation", "text"),
+        ("params", "text"),
+    ];
+
+    // Adds span columns that older files don't have. begin immediate takes the write lock up
+    // front, so two collectors opening one file can't both see a column missing and add it twice.
+    static void Migrate(SqliteConnection db)
+    {
+        Exec(db, "begin immediate;");
+        try
+        {
+            var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = "select name from pragma_table_info('spans');";
+                using var r = cmd.ExecuteReader();
+                while (r.Read()) have.Add(r.GetString(0));
+            }
+            foreach (var (name, type) in SpanColumns)
+                if (!have.Contains(name))
+                    Exec(db, $"alter table spans add column {name} {type};");
+            Exec(db, "commit;");
+        }
+        catch
+        {
+            try { Exec(db, "rollback;"); } catch { }
+            throw;
+        }
     }
 
     // Stores the trace and its spans, pricing each llm span. BatchSpanProcessor can split
@@ -62,12 +98,15 @@ public sealed class TraceStore
         var spans = new List<SpanRow>(src.Count);
         foreach (var s in src)
         {
-            var spanCost = s.Kind == "llm"
-                ? Pricing.CostFor(s.Model ?? t.Model, s.PromptTokens, s.CompletionTokens)
+            // agent spans are priced too, but trace totals skip the ones that have llm children
+            var spanCost = s.Kind is "llm" or "agent"
+                ? Pricing.CostFor(s.Model ?? t.Model,
+                    new TokenUsage(s.PromptTokens, s.CompletionTokens, s.CacheReadTokens, s.CacheWriteTokens, s.ReasoningTokens))
                 : null;
 
             spans.Add(new SpanRow(s.Id, s.ParentId, s.Name, s.Kind, s.StartedAt, s.DurationMs,
-                s.Model, s.PromptTokens, s.CompletionTokens, spanCost, s.PromptText, s.CompletionText, s.Error));
+                s.Model, s.PromptTokens, s.CompletionTokens, spanCost, s.PromptText, s.CompletionText, s.Error,
+                s.CacheReadTokens, s.CacheWriteTokens, s.ReasoningTokens, s.Operation, s.Params));
         }
 
         using var db = Open();
@@ -103,9 +142,11 @@ public sealed class TraceStore
             cmd.CommandText = """
                 insert or replace into spans
                 (id, trace_id, parent_id, name, kind, started_at, duration_ms, model,
-                 prompt_tokens, completion_tokens, cost_usd, prompt_text, completion_text, error)
+                 prompt_tokens, completion_tokens, cost_usd, prompt_text, completion_text, error,
+                 cache_read_tokens, cache_write_tokens, reasoning_tokens, operation, params)
                 values ($id, $trace, $parent, $name, $kind, $started, $dur, $model,
-                 $pt, $ct, $cost, $prompt, $completion, $error);
+                 $pt, $ct, $cost, $prompt, $completion, $error,
+                 $cr, $cw, $rs, $op, $params);
                 """;
             Bind(cmd, "$id", s.Id);
             Bind(cmd, "$trace", t.Id);
@@ -121,17 +162,34 @@ public sealed class TraceStore
             Bind(cmd, "$prompt", s.PromptText);
             Bind(cmd, "$completion", s.CompletionText);
             Bind(cmd, "$error", s.Error);
+            Bind(cmd, "$cr", s.CacheReadTokens);
+            Bind(cmd, "$cw", s.CacheWriteTokens);
+            Bind(cmd, "$rs", s.ReasoningTokens);
+            Bind(cmd, "$op", s.Operation);
+            Bind(cmd, "$params", s.Params);
             cmd.ExecuteNonQuery();
         }
 
         using (var cmd = db.CreateCommand())
         {
+            // An agent span's usage is the total of the model calls under it, so it's left out of
+            // the token and cost sums when any llm span sits below it (up walks the ancestors of
+            // llm spans). Duration and errors still look at every span.
             cmd.CommandText = """
+                with recursive up(pid) as (
+                    select parent_id from spans where trace_id = $id and kind = 'llm' and parent_id is not null
+                    union
+                    select s.parent_id from spans s join up on s.id = up.pid where s.trace_id = $id and s.parent_id is not null
+                ),
+                counted as (
+                    select * from spans
+                    where trace_id = $id and not (kind = 'agent' and id in (select pid from up))
+                )
                 update traces set
                     duration_ms = coalesce((select max(started_at + duration_ms) - min(started_at) from spans where trace_id = $id), duration_ms),
-                    prompt_tokens = (select sum(prompt_tokens) from spans where trace_id = $id),
-                    completion_tokens = (select sum(completion_tokens) from spans where trace_id = $id),
-                    cost_usd = (select sum(cost_usd) from spans where trace_id = $id),
+                    prompt_tokens = (select sum(prompt_tokens) from counted),
+                    completion_tokens = (select sum(completion_tokens) from counted),
+                    cost_usd = (select sum(cost_usd) from counted),
                     status = case when exists(select 1 from spans where trace_id = $id and error is not null) then 'error' else status end
                 where id = $id;
                 """;
@@ -197,7 +255,8 @@ public sealed class TraceStore
         {
             cmd.CommandText = """
                 select id, parent_id, name, kind, started_at, duration_ms, model,
-                       prompt_tokens, completion_tokens, cost_usd, prompt_text, completion_text, error
+                       prompt_tokens, completion_tokens, cost_usd, prompt_text, completion_text, error,
+                       cache_read_tokens, cache_write_tokens, reasoning_tokens, operation, params
                 from spans where trace_id = $id order by started_at;
                 """;
             Bind(cmd, "$id", id);
@@ -210,7 +269,10 @@ public sealed class TraceStore
                     Long(r, 7), Long(r, 8), Dbl(r, 9),
                     r.IsDBNull(10) ? null : r.GetString(10),
                     r.IsDBNull(11) ? null : r.GetString(11),
-                    r.IsDBNull(12) ? null : r.GetString(12)));
+                    r.IsDBNull(12) ? null : r.GetString(12),
+                    Long(r, 13), Long(r, 14), Long(r, 15),
+                    r.IsDBNull(16) ? null : r.GetString(16),
+                    r.IsDBNull(17) ? null : r.GetString(17)));
             }
         }
 
@@ -295,6 +357,7 @@ public sealed class TraceStore
         using var db = Open();
 
         double mtd, total;
+        double? mtdHit;
         using (var cmd = db.CreateCommand())
         {
             cmd.CommandText = """
@@ -309,6 +372,32 @@ public sealed class TraceStore
             total = r.GetDouble(1);
         }
 
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                select {HitRateSql} from spans s join traces t on t.id = s.trace_id
+                where t.started_at >= $month and s.kind = 'llm' and s.cache_read_tokens is not null;
+                """;
+            Bind(cmd, "$month", monthStartMs);
+            var v = cmd.ExecuteScalar();
+            mtdHit = v is double d ? d : null;
+        }
+
+        // same grouping key as the by-model query below, so the rows line up
+        var hitByModel = new Dictionary<string, double>();
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                select coalesce(t.model, 'unknown'), {HitRateSql}
+                from spans s join traces t on t.id = s.trace_id
+                where s.kind = 'llm' and s.cache_read_tokens is not null
+                group by coalesce(t.model, 'unknown');
+                """;
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                if (!r.IsDBNull(1)) hitByModel[r.GetString(0)] = r.GetDouble(1);
+        }
+
         var byModel = new List<ModelSpend>();
         using (var cmd = db.CreateCommand())
         {
@@ -319,7 +408,8 @@ public sealed class TraceStore
                 """;
             using var r = cmd.ExecuteReader();
             while (r.Read())
-                byModel.Add(new ModelSpend(r.GetString(0), r.GetDouble(1), r.GetInt32(2), r.GetInt64(3)));
+                byModel.Add(new ModelSpend(r.GetString(0), r.GetDouble(1), r.GetInt32(2), r.GetInt64(3),
+                    hitByModel.TryGetValue(r.GetString(0), out var hit) ? hit : null));
         }
 
         var daily = new List<DaySpend>();
@@ -336,8 +426,18 @@ public sealed class TraceStore
                 daily.Add(new DaySpend(r.GetString(0), r.GetDouble(1)));
         }
 
-        return new Spend(mtd, total, byModel, daily);
+        return new Spend(mtd, total, byModel, daily, mtdHit);
     }
+
+    // Cache reads over the prompt size, using the same inclusive/exclusive rule as Pricing:
+    // when cache reads + writes exceed input, input left the cache out, so it's added back.
+    // That keeps the rate at or under 1. The nullif makes an all-zero denominator null.
+    const string HitRateSql = """
+        sum(s.cache_read_tokens) * 1.0 / nullif(sum(case
+            when coalesce(s.cache_read_tokens, 0) + coalesce(s.cache_write_tokens, 0) > coalesce(s.prompt_tokens, 0)
+                then coalesce(s.prompt_tokens, 0) + coalesce(s.cache_read_tokens, 0) + coalesce(s.cache_write_tokens, 0)
+            else coalesce(s.prompt_tokens, 0) end), 0)
+        """;
 
     static TraceSummary ReadSummary(SqliteDataReader r) => new(
         r.GetString(0), r.GetString(1), r.GetInt64(2), r.GetDouble(3),

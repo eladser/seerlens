@@ -23,4 +23,6 @@ record SpanPayload(
     long? CompletionTokens,
     string? PromptText,
     string? CompletionText,
-    string? Error);
+    string? Error,
+    long? CacheReadTokens = null,
+    long? ReasoningTokens = null);

@@ -45,6 +45,7 @@ public sealed class SeerlensFilter : IFunctionInvocationFilter
             // a function whose result carries token usage was a model call
             var usage = meta is not null && meta.TryGetValue("Usage", out var u) ? u : null;
             var isLlm = usage is not null;
+            var (cacheRead, reasoning) = CacheUsage(usage);
 
             SeerlensTrace.AddSpan(
                 Name(context),
@@ -53,7 +54,8 @@ public sealed class SeerlensFilter : IFunctionInvocationFilter
                 isLlm ? Model(context, meta) : null,
                 ReadLong(usage, "InputTokenCount", "PromptTokens", "InputTokens"),
                 ReadLong(usage, "OutputTokenCount", "CompletionTokens", "OutputTokens"),
-                Args(context.Arguments), context.Result?.ToString(), error);
+                Args(context.Arguments), context.Result?.ToString(), error,
+                cacheRead, reasoning);
             trace?.Dispose();
         }
     }
@@ -73,6 +75,14 @@ public sealed class SeerlensFilter : IFunctionInvocationFilter
         var svc = context.Kernel.Services.GetService<IChatCompletionService>();
         return svc is not null && svc.Attributes.TryGetValue("ModelId", out var mid) ? mid?.ToString() : null;
     }
+
+    // MEAI's UsageDetails has the counts flat; OpenAI's ChatTokenUsage nests them in
+    // InputTokenDetails / OutputTokenDetails. Reflection, since the connector type isn't referenced.
+    internal static (long? CacheRead, long? Reasoning) CacheUsage(object? usage) => (
+        ReadLong(usage, "CachedInputTokenCount") ?? ReadLong(Member(usage, "InputTokenDetails"), "CachedTokenCount"),
+        ReadLong(usage, "ReasoningTokenCount") ?? ReadLong(Member(usage, "OutputTokenDetails"), "ReasoningTokenCount"));
+
+    static object? Member(object? obj, string name) => obj?.GetType().GetProperty(name)?.GetValue(obj);
 
     static long? ReadLong(object? obj, params string[] names)
     {

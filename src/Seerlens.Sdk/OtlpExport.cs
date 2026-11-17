@@ -52,6 +52,8 @@ static class OtlpExport
                 Add(attrs, "gen_ai.request.model", s.Model);
                 AddInt(attrs, "gen_ai.usage.input_tokens", s.PromptTokens);
                 AddInt(attrs, "gen_ai.usage.output_tokens", s.CompletionTokens);
+                AddInt(attrs, "gen_ai.usage.cache_read.input_tokens", s.CacheReadTokens);
+                AddInt(attrs, "gen_ai.usage.reasoning.output_tokens", s.ReasoningTokens);
                 AddMessages(attrs, "gen_ai.input.messages", "user", s.PromptText);
                 AddMessages(attrs, "gen_ai.output.messages", "assistant", s.CompletionText);
                 // older collectors (1.4 and earlier) only read these

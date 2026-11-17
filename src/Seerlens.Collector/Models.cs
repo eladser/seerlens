@@ -73,9 +73,10 @@ public record Spend(
     double MonthToDateUsd,
     double TotalUsd,
     IReadOnlyList<ModelSpend> ByModel,
-    IReadOnlyList<DaySpend> Daily);
+    IReadOnlyList<DaySpend> Daily,
+    double? CacheHitRate = null);   // month to date; null when no span reported cache reads
 
-public record ModelSpend(string Model, double CostUsd, int Calls, long Tokens);
+public record ModelSpend(string Model, double CostUsd, int Calls, long Tokens, double? CacheHitRate = null);
 
 public record DaySpend(string Date, double CostUsd);
 

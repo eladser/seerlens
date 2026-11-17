@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Seerlens.Sdk\Seerlens.Sdk.csproj" />
     <ProjectReference Include="..\..\src\Seerlens.Evals\Seerlens.Evals.csproj" />
+    <ProjectReference Include="..\..\src\Seerlens.SemanticKernel\Seerlens.SemanticKernel.csproj" />
   </ItemGroup>
 
 </Project>

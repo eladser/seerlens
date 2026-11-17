@@ -49,6 +49,14 @@ public static class SeerlensTrace
         => Record(new SpanPayload(Guid.NewGuid().ToString("N"), null, name, kind,
             TraceBuilder.Now(), durationMs, model, promptTokens, completionTokens, input, output, error));
 
+    // Same as above, plus the cache and reasoning counts, for integrations that can read them.
+    internal static void AddSpan(string name, string kind, double durationMs, string? model,
+        long? promptTokens, long? completionTokens, string? input, string? output, string? error,
+        long? cacheReadTokens, long? reasoningTokens)
+        => Record(new SpanPayload(Guid.NewGuid().ToString("N"), null, name, kind,
+            TraceBuilder.Now(), durationMs, model, promptTokens, completionTokens, input, output, error,
+            cacheReadTokens, reasoningTokens));
+
     internal static TraceBuilder? Current => _current.Value;
 
     internal static void Record(SpanPayload span)
