@@ -1,12 +1,12 @@
 [project]
 name = "seerlens"
 version = "1.6.0"
-description = "Send your Python app's LLM calls to Seerlens, the local DevTools for AI calls."
+description = "Send your Python app's LLM calls to Seerlens: diff runs locally, see real cost, fail CI on regressions. Plain OpenTelemetry works too."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Elad Sertshuk" }]
-keywords = ["llm", "ai", "observability", "tracing", "opentelemetry"]
+keywords = ["llm", "ai", "observability", "tracing", "opentelemetry", "diff", "evals", "cost", "genai"]
 
 [project.urls]
 Homepage = "https://github.com/eladser/seerlens"

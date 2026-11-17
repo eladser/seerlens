@@ -12,13 +12,13 @@
     <PackageId>Seerlens.Sdk</PackageId>
     <Version>1.6.0</Version>
     <Authors>Elad Sertshuk</Authors>
-    <Description>Send your .NET app's LLM calls to Seerlens. Wrap any IChatClient with .UseSeerlens() and see every call in a local dashboard.</Description>
+    <Description>Send a .NET app's LLM calls to Seerlens with one line (.UseSeerlens() on any IChatClient), then diff runs, see real cost and gate CI.</Description>
     <PackageProjectUrl>https://github.com/eladser/seerlens</PackageProjectUrl>
     <RepositoryUrl>https://github.com/eladser/seerlens</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>llm;ai;observability;tracing;openai;telemetry;ichatclient</PackageTags>
+    <PackageTags>llm;ai;observability;tracing;openai;telemetry;ichatclient;diff;evals;cost;genai</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
