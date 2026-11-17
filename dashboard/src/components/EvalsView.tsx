@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getEvalRun, getEvals, getSets, runEval, type SetsInfo } from '../api'
 import { downloadJson } from '../download'
+import { evalRef } from '../route'
 import { ago } from '../format'
 import type { EvalRun, EvalRunDetail } from '../types'
 import { SetEditor } from './SetEditor'
@@ -9,7 +10,7 @@ import { TrendChart } from './TrendChart'
 type Scorer = 'keyword' | 'llm-judge' | 'rubric' | 'consensus' | 'regex' | 'json-schema' | 'embedding' | 'agent'
 type Editing = { name: string | null } | null
 
-export function EvalsView() {
+export function EvalsView({ onDiff }: { onDiff: (a: string, b: string) => void }) {
   const [runs, setRuns] = useState<EvalRun[]>([])
   const [info, setInfo] = useState<SetsInfo | null>(null)
   const [set, setSet] = useState<string | null>(null)
@@ -151,6 +152,15 @@ export function EvalsView() {
                   <div className="case-top">
                     <span className={'case-score ' + scoreClass(c.score)}>{pct(c.score)}</span>
                     <span className="case-input">{c.input}</span>
+                    {c.baseline && detail && (
+                      <button
+                        className="ghost-btn what-changed"
+                        title={`last green: ${pct(c.baseline.score)}, ${ago(c.baseline.createdAt)}`}
+                        onClick={() => onDiff(evalRef(c.baseline!.runId, c.baseline!.caseIdx), evalRef(detail.run.id, i))}
+                      >
+                        What changed
+                      </button>
+                    )}
                   </div>
                   <pre>{c.answer}</pre>
                 </div>

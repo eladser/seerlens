@@ -1,3 +1,4 @@
+import { pickPair } from '../diff'
 import { ago, dur, money } from '../format'
 import type { TraceSummary } from '../types'
 
@@ -6,9 +7,13 @@ type Props = {
   selectedId: string | null
   latestId: string | null
   onSelect: (id: string) => void
+  picking: boolean
+  picked: string[]
+  onPick: (id: string) => void
 }
 
-export function TraceList({ traces, selectedId, latestId, onSelect }: Props) {
+export function TraceList({ traces, selectedId, latestId, onSelect, picking, picked, onPick }: Props) {
+  const order = picked.length === 2 ? pickPair(picked, traces) : null
   if (traces.length === 0) {
     return (
       <div className="empty list-empty">
@@ -27,14 +32,21 @@ export function TraceList({ traces, selectedId, latestId, onSelect }: Props) {
           key={t.id}
           className={
             'trace-row' +
-            (t.id === selectedId ? ' selected' : '') +
+            (!picking && t.id === selectedId ? ' selected' : '') +
+            (picked.includes(t.id) ? ' picked' : '') +
             (t.id === latestId ? ' flash' : '')
           }
-          onClick={() => onSelect(t.id)}
+          onClick={() => (picking ? onPick(t.id) : onSelect(t.id))}
         >
-          <span className={'mono-mark prov-' + (t.provider ?? 'none')}>
-            {mark(t.provider, t.model)}
-          </span>
+          {picking ? (
+            <span className="pick-mark">
+              {order ? (order[0] === t.id ? 'A' : order[1] === t.id ? 'B' : '') : picked.includes(t.id) ? '\u2713' : ''}
+            </span>
+          ) : (
+            <span className={'mono-mark prov-' + (t.provider ?? 'none')}>
+              {mark(t.provider, t.model)}
+            </span>
+          )}
           <div className="row-body">
             <div className="row-top">
               <span className="row-name">{t.name}</span>

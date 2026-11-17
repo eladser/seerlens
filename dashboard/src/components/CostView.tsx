@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getCost } from '../api'
+import { pct } from '../diff'
 import { money } from '../format'
 import type { CostReport } from '../types'
 
@@ -23,6 +24,7 @@ export function CostView() {
       <div className="spend-head">
         <Stat label="this month" value={money(spend.monthToDateUsd)} />
         <Stat label="all time" value={money(spend.totalUsd)} />
+        <Stat label="cache hit" value={pct(spend.cacheHitRate)} />
         {budget.monthlyUsd != null && <Stat label="budget" value={money(budget.monthlyUsd)} />}
       </div>
 
@@ -56,7 +58,9 @@ export function CostView() {
               <div className="spend-bar" style={{ width: `${maxModel ? (m.costUsd / maxModel) * 100 : 0}%` }} />
             </div>
             <span className="spend-cost num">{money(m.costUsd)}</span>
-            <span className="spend-meta muted">{m.calls} calls</span>
+            <span className="spend-meta muted">
+              {m.calls} calls{m.cacheHitRate != null && <> · {pct(m.cacheHitRate)} cached</>}
+            </span>
           </div>
         ))}
       </div>
