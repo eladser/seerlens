@@ -49,6 +49,7 @@ body {
   justify-content: space-between;
   padding: 0 18px;
   height: 48px;
+  flex-shrink: 0;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
@@ -333,7 +334,8 @@ body {
 .bad { color: var(--err); }
 
 /* evals */
-.eval-main { padding: 22px 26px; }
+/* every view but traces; fills the space under the topbar and scrolls itself */
+.eval-main { flex: 1; min-height: 0; padding: 22px 26px; }
 .evals { max-width: 760px; }
 
 .set-tabs { display: flex; gap: 6px; margin-bottom: 16px; }

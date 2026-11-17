@@ -266,7 +266,8 @@ app.MapGet("/api/cost", (TraceStore store, SettingsStore settings, Alerter alert
 {
     var now = DateTimeOffset.UtcNow;
     var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
-    var since = now.AddDays(-14).ToUnixTimeMilliseconds();
+    // 14 whole UTC days ending today, the same days SpendReport buckets by
+    var since = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero).AddDays(-13).ToUnixTimeMilliseconds();
 
     var spend = store.SpendReport(monthStart, since);
     var budget = settings.GetBudget();
