@@ -11,13 +11,15 @@ static class EvalService
         EvalStore evals, SettingsStore settings, Alerter alerter)
     {
         var set = sets.Get(setName) ?? throw new InvalidOperationException($"unknown set: {setName}");
-        var prev = evals.List(setName).LastOrDefault();   // most recent run before this one
 
         // "agent" runs the model with the case's tools and scores the tool sequence;
         // the others score a single answer.
         var run = scorer == "agent"
             ? await new AgentRunner(ai.Client!).Run(set, ai.Model)
             : await new EvalRunner(ai.Client!, Scoring.For(scorer, ai.Client!, ai.Embedder)).Run(set, ai.Model);
+
+        // only a run scored the same way is comparable; a judge score vs a keyword score is noise
+        var prev = evals.List(setName).LastOrDefault(r => r.Scorer == run.Scorer);
 
         var summary = evals.Add(ToEvalRunIn(run));
         if (prev is not null && prev.Score - run.Score > settings.GetAlerts().RegressionDrop)
