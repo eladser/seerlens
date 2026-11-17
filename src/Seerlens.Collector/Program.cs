@@ -183,10 +183,20 @@ app.MapPost("/eval/compare", async (CompareRequest req, GoldenSets sets, AiProvi
     if (sets.Get(req.Set) is not { } set)
         return Results.NotFound(new { error = $"unknown set: {req.Set}" });
 
+    var scorer = string.IsNullOrEmpty(req.Scorer) ? "keyword" : req.Scorer;
+    if (scorer == "agent" || !Scoring.IsKnown(scorer))
+        return Results.BadRequest(new { error = $"unusable scorer for compare: {scorer}" });
+
     // cap the fan-out so one request can't kick off a hundred paid model runs
     var models = req.Models is { Count: > 0 } ? req.Models.Take(8).ToList() : [ai.Model];
-    var result = await new Comparison(ai).Run(set, models, req.Scorer ?? "keyword", req.PromptPrefix);
-    return Results.Ok(result);
+    try
+    {
+        return Results.Ok(await new Comparison(ai).Run(set, models, scorer, req.PromptPrefix));
+    }
+    catch (InvalidOperationException e)   // embedding scorer without an embeddings provider
+    {
+        return Results.BadRequest(new { error = e.Message });
+    }
 });
 
 // Run-level eval: score a recorded agent trace's actual tool calls against the

@@ -11,7 +11,7 @@ public sealed class Comparison(AiProvider ai)
 {
     public async Task<CompareResult> Run(GoldenSet set, IReadOnlyList<string> models, string scorerName, string? promptPrefix)
     {
-        IScorer scorer = scorerName == "llm-judge" ? new LlmJudgeScorer(ai.Client!) : new KeywordScorer();
+        var scorer = Scoring.For(scorerName, ai.Client!, ai.Embedder);
         var rows = new List<CompareRow>(models.Count);
         foreach (var model in models)
         {
@@ -19,13 +19,14 @@ public sealed class Comparison(AiProvider ai)
                 continue;
             rows.Add(await RunOne(set, model, client, scorer, promptPrefix));
         }
-        return new CompareResult(set.Name, scorerName, promptPrefix, rows);
+        return new CompareResult(set.Name, scorer.Name, promptPrefix, rows);
     }
 
     static async Task<CompareRow> RunOne(GoldenSet set, string model, IChatClient client, IScorer scorer, string? prefix)
     {
         double scoreSum = 0;
         long inTokens = 0, outTokens = 0;
+        double? cost = null;
         double latencySum = 0;
 
         foreach (var c in set.Cases)
@@ -44,13 +45,17 @@ public sealed class Comparison(AiProvider ai)
             latencySum += sw.Elapsed.TotalMilliseconds;
             inTokens += resp.Usage?.InputTokenCount ?? 0;
             outTokens += resp.Usage?.OutputTokenCount ?? 0;
+
+            // per case: the long-context tier is decided by one call's prompt size
+            if (Pricing.CostFor(model, resp.Usage?.InputTokenCount, resp.Usage?.OutputTokenCount) is { } c1)
+                cost = (cost ?? 0) + c1;
         }
 
         var n = Math.Max(set.Cases.Count, 1);
         return new CompareRow(
             model,
             scoreSum / n,
-            Pricing.CostFor(model, inTokens, outTokens),
+            cost,
             latencySum / n,
             inTokens + outTokens);
     }
