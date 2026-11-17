@@ -1,6 +1,8 @@
 # Example: gate a pull request on answer quality with Seerlens.
 # Copy this into .github/workflows/ in your own repo and adjust the set name.
-# It runs your golden set on every PR and fails the check if quality drops.
+# It runs your golden set on every PR and fails the check if quality drops or
+# the run costs more than 25% over the saved baseline (the baseline file stores
+# the cost too; re-save it with --save-baseline when you change models on purpose).
 
 name: eval gate
 
@@ -30,6 +32,7 @@ jobs:
           seerlens eval support \
             --min 0.8 \
             --baseline .seerlens/support.base \
+            --max-cost-increase 0.25 \
             --junit eval-results.xml
 
       # Optional: surface per-case results in the PR's checks tab.

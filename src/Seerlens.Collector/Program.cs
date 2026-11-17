@@ -159,7 +159,7 @@ app.MapPost("/eval/runs", (EvalRunIn run, EvalStore evals) =>
 app.MapGet("/api/evals", (EvalStore evals, string? set) => evals.List(set));
 
 app.MapGet("/api/evals/{id}", (string id, EvalStore evals) =>
-    evals.Get(id) is { } detail ? Results.Ok(detail) : Results.NotFound());
+    evals.GetWithBaselines(id) is { } view ? Results.Ok(view) : Results.NotFound());
 
 app.MapGet("/api/sets", (GoldenSets sets, AiProvider ai) =>
     new { sets = sets.Names, aiConfigured = ai.Configured, model = ai.Model });

@@ -29,5 +29,5 @@ static class EvalService
 
     static EvalRunIn ToEvalRunIn(EvalRun r) =>
         new(r.Id, r.Set, r.Target, r.Scorer, r.CreatedAt, r.Score,
-            r.Cases.Select(c => new EvalCaseIn(c.Input, c.Answer, c.Score)).ToList());
+            r.Cases.Select(c => new EvalCaseIn(c.Input, c.Answer, c.Score, c.CaseId, c.Steps)).ToList());
 }
