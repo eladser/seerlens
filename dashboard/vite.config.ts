@@ -15,6 +15,7 @@ export default defineConfig({
       '/api': collector,
       '/events': collector,
       '/ingest': collector,
+      '/eval': collector,
     },
   },
 })

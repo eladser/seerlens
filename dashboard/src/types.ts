@@ -57,6 +57,12 @@ export type GoldenCase = {
   input: string
   keywords: string[] | null
   criteria: string | null
+  tools?: unknown[] | null
+  expectedTools?: string[] | null
+  rubric?: string[] | null
+  patterns?: string[] | null
+  schema?: string | null
+  reference?: string | null
 }
 
 export type GoldenSet = { name: string; cases: GoldenCase[] }
