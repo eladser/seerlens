@@ -2,7 +2,7 @@
 
 Notable changes per release. Dates are in 2026.
 
-## 1.6.0 - 11-10
+## 1.6.0 - 11-17
 
 - Opt-in retention: set `SEERLENS_RETENTION_DAYS` and the collector drops traces (and their spans) older than that many days, at startup and then once a day. It's off unless set, and unset or `0` keeps everything. Eval runs and settings are never pruned. Month-to-date spend is summed from stored traces, so a value under 31 can undercount the budget.
 - Tool spans from exporters that follow the GenAI semconv now show their result: OTLP ingest reads `gen_ai.tool.call.result`, and structured tool arguments and results render as JSON. The older `gen_ai.tool.message` key still works, and the .NET SDK sends both. A NaN or infinite number inside a structured value is kept as text instead of failing the whole batch.
