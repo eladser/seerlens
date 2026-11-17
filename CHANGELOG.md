@@ -12,6 +12,7 @@ Notable changes per release. Dates are in 2026.
 - The dashboard's Evals tab can run the consensus and embedding scorers. Saving a set from the editor keeps case ids and the tools, expected tools, rubric, patterns, schema and reference fields instead of renumbering and dropping them. The dev server proxies `/eval`.
 - Eval runs now store each case's steps: the model call (model, timing, input, output, cached and reasoning tokens) and every tool call with its arguments, plus the case id. Runs saved before this have no steps and still read. `GET /api/evals/{id}` returns them, and for each case that scored under 0.8 a `baseline` pointing at the last earlier run of the same set and scorer where that case scored 0.8 or more (matched by id and input, else by exact input, within the last 50 runs).
 - `seerlens eval --max-cost-increase <fraction>` fails the build when the run's cost is over the baseline's cost x (1 + fraction). `--save-baseline` now writes the cost (`costUsd`, target-model spend only); a baseline saved without it passes with a note, and the flag needs `--baseline`. Older baseline files still read.
+- Run diff API: `GET /api/diff?a=&b=` lines up two runs (a trace id, or `eval:{runId}:{caseIdx}` for one stored eval case) step by step and reports totals, tool path and what changed per step. `GET /api/diff/step` returns the word-level text diff for one pair when a row is expanded. Eval runs from before 1.6 diff as answer-only.
 
 ## 1.5.0 - 09-30
 
