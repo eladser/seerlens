@@ -119,6 +119,7 @@ public static class RunDiff
     // startedAt order, then parallel fan-out groups anchored at their first step.
     public static List<SpanRow> Order(TraceDetail d)
     {
+        if (d.InOrder) return d.Spans.Where(IsStep).ToList();
         var sorted = d.Spans.Where(IsStep).OrderBy(s => s.StartedAt).ToList();
         var used = new bool[sorted.Count];
         var res = new List<SpanRow>(sorted.Count);
@@ -206,7 +207,27 @@ public static class RunDiff
         if (!string.Equals(x.CompletionText ?? "", y.CompletionText ?? "", StringComparison.Ordinal)) changes.Add("output");
         if (!string.Equals(x.Error, y.Error, StringComparison.Ordinal)) changes.Add("error");
 
-        return new DiffStep(changes.Count == 0 ? "same" : "changed", x.Kind, x.Name, View(x, startA), View(y, startB), changes, pars);
+        var name = changes.Contains("model") ? WithoutModel(x) : x.Name;
+        return new DiffStep(changes.Count == 0 ? "same" : "changed", x.Kind, name, View(x, startA), View(y, startB), changes, pars);
+    }
+
+    // Semconv names a call "{operation} {model}" (the .NET SDK "chat: {model}"), so after a
+    // model swap A's name would repeat A's model next to the "a → b" change.
+    static string WithoutModel(SpanRow s)
+    {
+        if (s.Model is { Length: > 0 } m)
+        {
+            var i = s.Name.IndexOf(m, StringComparison.OrdinalIgnoreCase);
+            if (i >= 0)
+            {
+                var rest = (s.Name[..i] + s.Name[(i + m.Length)..]).Trim(' ', ':');
+                return rest.Length > 0 ? rest : s.Operation ?? s.Kind;
+            }
+        }
+        // the name has the request model, the span the response model (gpt-4o vs gpt-4o-2024-08-06)
+        if (s.Operation is { Length: > 0 } op && s.Name.StartsWith(op + " ", StringComparison.OrdinalIgnoreCase))
+            return op;
+        return s.Name;
     }
 
     static StepView View(SpanRow s, long start) => new(

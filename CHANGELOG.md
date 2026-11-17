@@ -19,6 +19,7 @@ Notable changes per release. Dates are in 2026.
 - Fixed: prompts sent by the .NET SDK showed a doubled role, like `user: system: ...`. The SDK now sends the messages with their roles, so they read `system: ...` and `user: ...` once. Traces already stored keep the old text.
 - Fixed: `SEERLENS_RETENTION_DAYS` no longer delays startup. The first prune runs after the collector is listening and deletes in chunks.
 - Fixed: `seerlens eval` printed some percentages as `100 %` and others as `80%`. They all use `100%` now.
+- Fixed: the dashboard's top bar shrank when a page was taller than the window. The Evals tab sometimes opened on a sample set saying "No runs yet" when runs existed; it now opens on the set of the most recent run. The cost view's "Last 14 days" showed 15 days and now shows 14 days ending today (UTC).
 - Spans also store the operation name and the request parameters (`gen_ai.request.*` plus finish reasons). Existing databases get five new span columns at startup. A 1.5.0 collector can still open a migrated file.
 - `/api/cost` returns a cache hit rate for the month and per model. It's cache reads over the prompt size, capped at 100%, and blank when no span reported cache reads.
 - Prices for Gemini 3.1 Pro, 3.5 Flash-Lite, 3.1 Flash-Lite and 3 Flash, and the over-200K prompt tier for Gemini 2.5 Pro. Gemini 3.8 Flash and 3.6 Flash have no row because their price changes on 2027-01-01.

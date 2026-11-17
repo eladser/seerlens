@@ -61,7 +61,7 @@ public static class EvalCaseTrace
             llm.Any(s => s.PromptTokens is not null) ? llm.Sum(s => s.PromptTokens ?? 0) : null,
             llm.Any(s => s.CompletionTokens is not null) ? llm.Sum(s => s.CompletionTokens ?? 0) : null,
             spans.Any(s => s.CostUsd is not null) ? spans.Sum(s => s.CostUsd ?? 0) : null);
-        return new TraceDetail(summary, spans);
+        return new TraceDetail(summary, spans) { InOrder = true };
     }
 
     static string Kind(Seerlens.Evals.EvalStep s) => s.Kind is "tool" or "mcp" ? s.Kind : "llm";
